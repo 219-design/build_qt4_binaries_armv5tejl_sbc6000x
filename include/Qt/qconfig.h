@@ -16,6 +16,15 @@
 #else
 #define Q_BYTE_ORDER Q_LITTLE_ENDIAN
 #endif
+/* Non-IEEE double format */
+#define Q_DOUBLE_LITTLE "01234567"
+#define Q_DOUBLE_BIG "76543210"
+#define Q_DOUBLE_LITTLE_SWAPPED "45670123"
+#define Q_DOUBLE_BIG_SWAPPED "32107654"
+#define Q_DOUBLE_FORMAT Q_DOUBLE_LITTLE_SWAPPED
+#ifndef QT_BOOTSTRAPPED
+# define QT_ARMFPA
+#endif
 /* Machine Architecture */
 #ifndef QT_BOOTSTRAPPED
 # define QT_ARCH_ARM

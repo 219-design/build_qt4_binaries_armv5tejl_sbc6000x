@@ -68,7 +68,6 @@ pushd build/
       -embedded arm \
       -xplatform qws/linux-arm-g++ \
       -little-endian \
-      -no-armfpa \
       -qt-gfx-transformed \
       -qt-gfx-linuxfb \
       -lrt \
