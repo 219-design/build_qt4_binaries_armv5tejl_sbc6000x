@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -46,12 +50,12 @@ QT_BEGIN_NAMESPACE
 
 QT_MODULE(Core)
 
-class QString;
-
 class QByteArray;
 
+class QString;
+
 #ifndef Q_MOC_OUTPUT_REVISION
-#define Q_MOC_OUTPUT_REVISION 59
+#define Q_MOC_OUTPUT_REVISION 63
 #endif
 
 // The following macros are our "extensions" to C++
@@ -74,6 +78,8 @@ class QByteArray;
 #define Q_CLASSINFO(name, value)
 #define Q_INTERFACES(x)
 #define Q_PROPERTY(text)
+#define Q_PRIVATE_PROPERTY(d, text)
+#define Q_REVISION(v)
 #define Q_OVERRIDE(text)
 #define Q_ENUMS(x)
 #define Q_FLAGS(x)
@@ -82,6 +88,8 @@ class QByteArray;
 #endif
 #define Q_SCRIPTABLE
 #define Q_INVOKABLE
+#define Q_SIGNAL
+#define Q_SLOT
 
 #ifndef QT_NO_TRANSLATION
 # ifndef QT_NO_TEXTCODEC
@@ -110,7 +118,7 @@ class QByteArray;
 # define QT_TR_FUNCTIONS
 #endif
 
-#if defined(QT_NO_MEMBER_TEMPLATES) || defined(QT_NO_QOBJECT_CHECK)
+#if defined(QT_NO_QOBJECT_CHECK)
 /* tmake ignore Q_OBJECT */
 #define Q_OBJECT_CHECK
 #else
@@ -130,31 +138,42 @@ class QByteArray;
 /* tmake ignore Q_OBJECT */
 #define Q_OBJECT_CHECK \
     template <typename T> inline void qt_check_for_QOBJECT_macro(const T &_q_argument) const \
-    { int i = qYouForgotTheQ_OBJECT_Macro(this, &_q_argument); i = i; }
+    { int i = qYouForgotTheQ_OBJECT_Macro(this, &_q_argument); i = i + 1; }
 
 template <typename T>
 inline int qYouForgotTheQ_OBJECT_Macro(T, T) { return 0; }
 
 template <typename T1, typename T2>
 inline void qYouForgotTheQ_OBJECT_Macro(T1, T2) {}
-#endif // QT_NO_MEMBER_TEMPLATES
+#endif // QT_NO_QOBJECT_CHECK
+
+#ifdef Q_NO_DATA_RELOCATION
+#define Q_OBJECT_GETSTATICMETAOBJECT static const QMetaObject &getStaticMetaObject();
+#else
+#define Q_OBJECT_GETSTATICMETAOBJECT
+#endif
 
 /* tmake ignore Q_OBJECT */
 #define Q_OBJECT \
 public: \
     Q_OBJECT_CHECK \
     static const QMetaObject staticMetaObject; \
+    Q_OBJECT_GETSTATICMETAOBJECT \
     virtual const QMetaObject *metaObject() const; \
     virtual void *qt_metacast(const char *); \
     QT_TR_FUNCTIONS \
     virtual int qt_metacall(QMetaObject::Call, int, void **); \
-private:
+private: \
+    Q_DECL_HIDDEN static const QMetaObjectExtraData staticMetaObjectExtraData; \
+    Q_DECL_HIDDEN static void qt_static_metacall(QObject *, QMetaObject::Call, int, void **);
+
 /* tmake ignore Q_OBJECT */
 #define Q_OBJECT_FAKE Q_OBJECT
 /* tmake ignore Q_GADGET */
 #define Q_GADGET \
 public: \
     static const QMetaObject staticMetaObject; \
+    Q_OBJECT_GETSTATICMETAOBJECT \
 private:
 #else // Q_MOC_RUN
 #define slots slots
@@ -164,6 +183,8 @@ private:
 #define Q_CLASSINFO(name, value) Q_CLASSINFO(name, value)
 #define Q_INTERFACES(x) Q_INTERFACES(x)
 #define Q_PROPERTY(text) Q_PROPERTY(text)
+#define Q_PRIVATE_PROPERTY(d, text) Q_PRIVATE_PROPERTY(d, text)
+#define Q_REVISION(v) Q_REVISION(v)
 #define Q_OVERRIDE(text) Q_OVERRIDE(text)
 #define Q_ENUMS(x) Q_ENUMS(x)
 #define Q_FLAGS(x) Q_FLAGS(x)
@@ -178,6 +199,8 @@ private:
 #define Q_GADGET Q_GADGET
 #define Q_SCRIPTABLE Q_SCRIPTABLE
 #define Q_INVOKABLE Q_INVOKABLE
+#define Q_SIGNAL Q_SIGNAL
+#define Q_SLOT Q_SLOT
 #endif //Q_MOC_RUN
 
 // macro for onaming members
@@ -191,19 +214,34 @@ private:
 #undef SIGNAL
 #endif
 
-#define METHOD(a)        "0"#a
-#define SLOT(a)                "1"#a
-#define SIGNAL(a)        "2"#a
+Q_CORE_EXPORT const char *qFlagLocation(const char *method);
 
-#ifdef QT3_SUPPORT
-#define METHOD_CODE        0                        // member type codes
-#define SLOT_CODE        1
-#define SIGNAL_CODE        2
+#define QTOSTRING_HELPER(s) #s
+#define QTOSTRING(s) QTOSTRING_HELPER(s)
+#ifndef QT_NO_DEBUG
+# define QLOCATION "\0" __FILE__ ":" QTOSTRING(__LINE__)
+# ifndef QT_NO_KEYWORDS
+#  define METHOD(a)   qFlagLocation("0"#a QLOCATION)
+# endif
+# define SLOT(a)     qFlagLocation("1"#a QLOCATION)
+# define SIGNAL(a)   qFlagLocation("2"#a QLOCATION)
+#else
+# ifndef QT_NO_KEYWORDS
+#  define METHOD(a)   "0"#a
+# endif
+# define SLOT(a)     "1"#a
+# define SIGNAL(a)   "2"#a
 #endif
 
-#define QMETHOD_CODE        0                        // member type codes
-#define QSLOT_CODE        1
-#define QSIGNAL_CODE        2
+#ifdef QT3_SUPPORT
+#define METHOD_CODE   0                        // member type codes
+#define SLOT_CODE     1
+#define SIGNAL_CODE   2
+#endif
+
+#define QMETHOD_CODE  0                        // member type codes
+#define QSLOT_CODE    1
+#define QSIGNAL_CODE  2
 
 #define Q_ARG(type, data) QArgument<type >(#type, data)
 #define Q_RETURN_ARG(type, data) QReturnArgument<type >(#type, data)
@@ -244,6 +282,14 @@ public:
         : QGenericArgument(aName, static_cast<const void *>(&aData))
         {}
 };
+template <class T>
+class QArgument<T &>: public QGenericArgument
+{
+public:
+    inline QArgument(const char *aName, T &aData)
+        : QGenericArgument(aName, static_cast<const void *>(&aData))
+        {}
+};
 
 
 template <typename T>
@@ -261,6 +307,7 @@ struct Q_CORE_EXPORT QMetaObject
     const QMetaObject *superClass() const;
 
     QObject *cast(QObject *obj) const;
+    const QObject *cast(const QObject *obj) const;
 
 #ifndef QT_NO_TRANSLATION
     // ### Qt 4: Merge overloads
@@ -275,11 +322,13 @@ struct Q_CORE_EXPORT QMetaObject
     int propertyOffset() const;
     int classInfoOffset() const;
 
+    int constructorCount() const;
     int methodCount() const;
     int enumeratorCount() const;
     int propertyCount() const;
     int classInfoCount() const;
 
+    int indexOfConstructor(const char *constructor) const;
     int indexOfMethod(const char *method) const;
     int indexOfSignal(const char *signal) const;
     int indexOfSlot(const char *slot) const;
@@ -287,6 +336,7 @@ struct Q_CORE_EXPORT QMetaObject
     int indexOfProperty(const char *name) const;
     int indexOfClassInfo(const char *name) const;
 
+    QMetaMethod constructor(int index) const;
     QMetaMethod method(int index) const;
     QMetaEnum enumerator(int index) const;
     QMetaProperty property(int index) const;
@@ -304,14 +354,17 @@ struct Q_CORE_EXPORT QMetaObject
     // internal index-based disconnect
     static bool disconnect(const QObject *sender, int signal_index,
                            const QObject *receiver, int method_index);
+    static bool disconnectOne(const QObject *sender, int signal_index,
+                              const QObject *receiver, int method_index);
     // internal slot-name based connect
     static void connectSlotsByName(QObject *o);
 
     // internal index-based signal activation
-    static void activate(QObject *sender, int signal_index, void **argv);
-    static void activate(QObject *sender, int from_signal_index, int to_signal_index, void **argv);
+    static void activate(QObject *sender, int signal_index, void **argv);  //obsolete
+    static void activate(QObject *sender, int from_signal_index, int to_signal_index, void **argv); //obsolete
     static void activate(QObject *sender, const QMetaObject *, int local_signal_index, void **argv);
-    static void activate(QObject *sender, const QMetaObject *, int from_local_signal_index, int to_local_signal_index, void **argv);
+    static void activate(QObject *sender, const QMetaObject *, int from_local_signal_index, int to_local_signal_index, void **argv); //obsolete
+
     // internal guarded pointers
     static void addGuard(QObject **ptr);
     static void removeGuard(QObject **ptr);
@@ -365,7 +418,6 @@ struct Q_CORE_EXPORT QMetaObject
                                  val3, val4, val5, val6, val7, val8, val9);
     }
 
-
     static inline bool invokeMethod(QObject *obj, const char *member,
                              QGenericArgument val0 = QGenericArgument(0),
                              QGenericArgument val1 = QGenericArgument(),
@@ -382,6 +434,17 @@ struct Q_CORE_EXPORT QMetaObject
                 val1, val2, val3, val4, val5, val6, val7, val8, val9);
     }
 
+    QObject *newInstance(QGenericArgument val0 = QGenericArgument(0),
+                         QGenericArgument val1 = QGenericArgument(),
+                         QGenericArgument val2 = QGenericArgument(),
+                         QGenericArgument val3 = QGenericArgument(),
+                         QGenericArgument val4 = QGenericArgument(),
+                         QGenericArgument val5 = QGenericArgument(),
+                         QGenericArgument val6 = QGenericArgument(),
+                         QGenericArgument val7 = QGenericArgument(),
+                         QGenericArgument val8 = QGenericArgument(),
+                         QGenericArgument val9 = QGenericArgument()) const;
+
     enum Call {
         InvokeMetaMethod,
         ReadProperty,
@@ -391,8 +454,12 @@ struct Q_CORE_EXPORT QMetaObject
         QueryPropertyScriptable,
         QueryPropertyStored,
         QueryPropertyEditable,
-        QueryPropertyUser
+        QueryPropertyUser,
+        CreateInstance
     };
+
+    int static_metacall(Call, int, void **) const;
+    static int metacall(QObject *, Call, int, void **);
 
 #ifdef QT3_SUPPORT
     QT3_SUPPORT const char *superClassName() const;
@@ -402,8 +469,23 @@ struct Q_CORE_EXPORT QMetaObject
         const QMetaObject *superdata;
         const char *stringdata;
         const uint *data;
-        const QMetaObject **extradata;
+        const void *extradata;
     } d;
+};
+
+typedef const QMetaObject& (*QMetaObjectAccessor)();
+
+struct QMetaObjectExtraData
+{
+#ifdef Q_NO_DATA_RELOCATION
+    const QMetaObjectAccessor *objects;
+#else
+    const QMetaObject **objects;
+#endif
+
+    typedef void (*StaticMetacallFunction)(QObject *, QMetaObject::Call, int, void **); //from revision 6
+    //typedef int (*StaticMetaCall)(QMetaObject::Call, int, void **); //used from revison 2 until revison 5
+    StaticMetacallFunction static_metacall;
 };
 
 inline const char *QMetaObject::className() const

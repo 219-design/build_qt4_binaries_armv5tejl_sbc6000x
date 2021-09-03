@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -40,6 +44,7 @@
 
 #include <QtCore/qnamespace.h>
 #include <QtCore/qbytearray.h>
+#include <QtCore/qobjectdefs.h>
 
 QT_BEGIN_HEADER
 
@@ -50,7 +55,9 @@ QT_MODULE(Core)
 class QEventPrivate;
 class Q_CORE_EXPORT QEvent           // event base class
 {
+    Q_GADGET
     QDOC_PROPERTY(bool accepted READ isAccepted WRITE setAccepted)
+    Q_ENUMS(Type)
 public:
     enum Type {
         /*
@@ -202,8 +209,8 @@ public:
         // last event id used = 132
 
 #ifdef QT_KEYPAD_NAVIGATION
-        EnterEditFocus = 150,                   // enter edit mode in keypad navigation
-        LeaveEditFocus = 151,                   // enter edit mode in keypad navigation
+        EnterEditFocus = 150,                   // enter edit mode in keypad navigation (Defined only with QT_KEYPAD_NAVIGATION)
+        LeaveEditFocus = 151,                   // leave edit mode in keypad navigation (Defined only with QT_KEYPAD_NAVIGATION)
 #endif
         AcceptDropsChange = 152,
 
@@ -259,6 +266,33 @@ public:
         UngrabMouse = 187,
         GrabKeyboard = 188,
         UngrabKeyboard = 189,
+        MacGLClearDrawable = 191,               // Internal Cocoa, the window has changed, so we must clear
+
+        StateMachineSignal = 192,
+        StateMachineWrapped = 193,
+
+        TouchBegin = 194,
+        TouchUpdate = 195,
+        TouchEnd = 196,
+
+#ifndef QT_NO_GESTURES
+        NativeGesture = 197,                    // Internal for platform gesture support
+#endif
+        RequestSoftwareInputPanel = 199,
+        CloseSoftwareInputPanel = 200,
+
+        UpdateSoftKeys = 201,                   // Internal for compressing soft key updates
+
+        WinIdChange = 203,
+#ifndef QT_NO_GESTURES
+        Gesture = 198,
+        GestureOverride = 202,
+#endif
+
+        PlatformPanel = 212,
+
+        // 512 reserved for Qt Jambi's MetaCall event
+        // 513 reserved for Qt Jambi's DeleteOnMainThread event
 
         User = 1000,                            // first user event id
         MaxUser = 65535                         // last user event id
@@ -295,6 +329,13 @@ private:
     friend class Q3AccelManager;
     friend class QShortcutMap;
     friend class QETWidget;
+    friend class QGraphicsView;
+    friend class QGraphicsViewPrivate;
+    friend class QGraphicsScene;
+    friend class QGraphicsScenePrivate;
+#ifndef QT_NO_GESTURES
+    friend class QGestureManager;
+#endif
 };
 
 class Q_CORE_EXPORT QTimerEvent : public QEvent

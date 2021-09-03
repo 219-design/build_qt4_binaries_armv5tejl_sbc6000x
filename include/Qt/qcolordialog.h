@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -54,51 +58,88 @@ class Q_GUI_EXPORT QColorDialog : public QDialog
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(QColorDialog)
+    Q_ENUMS(ColorDialogOption)
+    Q_PROPERTY(QColor currentColor READ currentColor WRITE setCurrentColor
+               NOTIFY currentColorChanged)
+    Q_PROPERTY(ColorDialogOptions options READ options WRITE setOptions)
 
 public:
-    static QColor getColor(const QColor& init = Qt::white, QWidget* parent=0);
-    static QRgb getRgba(QRgb = 0xffffffff, bool* ok = 0, QWidget* parent=0);
+    enum ColorDialogOption {
+        ShowAlphaChannel    = 0x00000001,
+        NoButtons           = 0x00000002,
+        DontUseNativeDialog = 0x00000004
+    };
 
+    Q_DECLARE_FLAGS(ColorDialogOptions, ColorDialogOption)
+
+    explicit QColorDialog(QWidget *parent = 0);
+    explicit QColorDialog(const QColor &initial, QWidget *parent = 0);
+    ~QColorDialog();
+
+    void setCurrentColor(const QColor &color);
+    QColor currentColor() const;
+
+    QColor selectedColor() const;
+
+    void setOption(ColorDialogOption option, bool on = true);
+    bool testOption(ColorDialogOption option) const;
+    void setOptions(ColorDialogOptions options);
+    ColorDialogOptions options() const;
+
+#ifdef Q_NO_USING_KEYWORD
+    void open() { QDialog::open(); }
+#else
+    using QDialog::open;
+#endif
+    void open(QObject *receiver, const char *member);
+
+    void setVisible(bool visible);
+
+    // ### Qt 5: merge overloads with title = QString()
+    static QColor getColor(const QColor &initial, QWidget *parent, const QString &title,
+                           ColorDialogOptions options = 0);
+    static QColor getColor(const QColor &initial = Qt::white, QWidget *parent = 0);
+
+    // obsolete
+    static QRgb getRgba(QRgb rgba = 0xffffffff, bool *ok = 0, QWidget *parent = 0);
+
+    // ### Qt 5: use QColor in signatures
     static int customCount();
-    static QRgb customColor(int);
-    static void setCustomColor(int, QRgb);
-    static void setStandardColor(int, QRgb);
+    static QRgb customColor(int index);
+    static void setCustomColor(int index, QRgb color);
+    static void setStandardColor(int index, QRgb color);
 
 #ifdef QT3_SUPPORT
-    static QColor getColor(const QColor& init, QWidget* parent, const char* name)
+    static QColor getColor(const QColor &init, QWidget *parent, const char *name)
         { Q_UNUSED(name); return getColor(init, parent); }
-    static QRgb getRgba(QRgb rgba, bool* ok, QWidget* parent, const char* name)
+    static QRgb getRgba(QRgb rgba, bool *ok, QWidget *parent, const char *name)
         { Q_UNUSED(name); return getRgba(rgba, ok, parent); }
 #endif
 
+Q_SIGNALS:
+    void currentColorChanged(const QColor &color);
+    void colorSelected(const QColor &color);
+
 protected:
-    void changeEvent(QEvent *e);
-private:
-    ~QColorDialog();
-    explicit QColorDialog(QWidget* parent=0, bool modal=false);
-
-    void setColor(const QColor&);
-    QColor color() const;
-
-    bool selectColor(const QColor&);
-
-    void setSelectedAlpha(int);
-    int selectedAlpha() const;
-
-    void showCustom(bool=true);
+    void changeEvent(QEvent *event);
+    void done(int result);
 
 private:
     Q_DISABLE_COPY(QColorDialog)
 
     Q_PRIVATE_SLOT(d_func(), void _q_addCustom())
-
     Q_PRIVATE_SLOT(d_func(), void _q_newHsv(int h, int s, int v))
     Q_PRIVATE_SLOT(d_func(), void _q_newColorTypedIn(QRgb rgb))
     Q_PRIVATE_SLOT(d_func(), void _q_newCustom(int, int))
     Q_PRIVATE_SLOT(d_func(), void _q_newStandard(int, int))
+#if defined(Q_WS_MAC)
+    Q_PRIVATE_SLOT(d_func(), void _q_macRunNativeAppModalPanel())
+#endif
 
     friend class QColorShower;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(QColorDialog::ColorDialogOptions)
 
 #endif // QT_NO_COLORDIALOG
 

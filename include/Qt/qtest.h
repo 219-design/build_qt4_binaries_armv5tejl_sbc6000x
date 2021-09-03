@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtTest module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -41,12 +45,15 @@
 #include <QtTest/qtest_global.h>
 #include <QtTest/qtestcase.h>
 #include <QtTest/qtestdata.h>
+#include <QtTest/qtestdata.h>
+#include <QtTest/qbenchmark.h>
 
 #include <QtCore/qbytearray.h>
 #include <QtCore/qstring.h>
 #include <QtCore/qstringlist.h>
 #include <QtCore/qdatetime.h>
 #include <QtCore/qobject.h>
+#include <QtCore/qvariant.h>
 #include <QtCore/qurl.h>
 
 #include <QtCore/qpoint.h>
@@ -81,14 +88,14 @@ template<> inline char *toString(const QByteArray &ba)
 template<> inline char *toString(const QTime &time)
 {
     return time.isValid()
-        ? qstrdup(time.toString(QLatin1String("hh:mm:ss.zzz")).toLatin1())
+        ? qstrdup(time.toString(QLatin1String("hh:mm:ss.zzz")).toLatin1().constData())
         : qstrdup("Invalid QTime");
 }
 
 template<> inline char *toString(const QDate &date)
 {
     return date.isValid()
-        ? qstrdup(date.toString(QLatin1String("yyyy/MM/dd")).toLatin1())
+        ? qstrdup(date.toString(QLatin1String("yyyy/MM/dd")).toLatin1().constData())
         : qstrdup("Invalid QDate");
 }
 
@@ -96,13 +103,13 @@ template<> inline char *toString(const QDateTime &dateTime)
 {
     return dateTime.isValid()
         ? qstrdup((dateTime.toString(QLatin1String("yyyy/MM/dd hh:mm:ss.zzz")) +
-                  (dateTime.timeSpec() == Qt::LocalTime ? QLatin1String("[local time]") : QLatin1String("[UTC]"))).toLatin1())
+                  (dateTime.timeSpec() == Qt::LocalTime ? QLatin1String("[local time]") : QLatin1String("[UTC]"))).toLatin1().constData())
         : qstrdup("Invalid QDateTime");
 }
 
 template<> inline char *toString(const QChar &c)
 {
-    return qstrdup(QString::fromLatin1("QChar: '%1' (0x%2)").arg(c).arg(QString::number(c.unicode(), 16)).toLatin1().constData());
+    return qstrdup(QString::fromLatin1("QChar: '%1' (0x%2)").arg(c).arg(QString::number(static_cast<int>(c.unicode()), 16)).toLatin1().constData());
 }
 
 template<> inline char *toString(const QPoint &p)
@@ -140,6 +147,30 @@ template<> inline char *toString(const QUrl &uri)
     return qstrdup(uri.toEncoded().constData());
 }
 
+template<> inline char *toString(const QVariant &v)
+{
+    QByteArray vstring("QVariant(");
+    if (v.isValid()) {
+        QByteArray type(v.typeName());
+        if (type.isEmpty()) {
+            type = QByteArray::number(v.userType());
+        }
+        vstring.append(type);
+        if (!v.isNull()) {
+            vstring.append(',');
+            if (v.canConvert(QVariant::String)) {
+                vstring.append(qvariant_cast<QString>(v).toLatin1());
+            }
+            else {
+                vstring.append("<value not representable as string>");
+            }
+        }
+    }
+    vstring.append(')');
+
+    return qstrdup(vstring.constData());
+}
+
 #ifndef QTEST_NO_SPECIALIZATIONS
 template<>
 #endif
@@ -171,7 +202,7 @@ inline bool qCompare(QStringList const &t1, QStringList const &t2,
         isOk = false;
     }
     const int min = qMin(t1.count(), t2.count());
-    for (int i = 0; i < min; ++i) {
+    for (int i = 0; isOk && i < min; ++i) {
         if (t1.at(i) != t2.at(i)) {
             qt_snprintf(msg, 1024, "Compared QStringLists differ at index %d.\n"
                         "   Actual (%s) : '%s'\n"
@@ -220,10 +251,17 @@ int main(int argc, char *argv[]) \
 
 #include <QtTest/qtest_gui.h>
 
+#ifdef QT_KEYPAD_NAVIGATION
+#  define QTEST_DISABLE_KEYPAD_NAVIGATION QApplication::setNavigationMode(Qt::NavigationModeNone);
+#else
+#  define QTEST_DISABLE_KEYPAD_NAVIGATION
+#endif
+
 #define QTEST_MAIN(TestObject) \
 int main(int argc, char *argv[]) \
 { \
     QApplication app(argc, argv); \
+    QTEST_DISABLE_KEYPAD_NAVIGATION \
     TestObject tc; \
     return QTest::qExec(&tc, argc, argv); \
 }

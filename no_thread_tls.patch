@@ -1,0 +1,21 @@
+--- qt-everywhere-opensource-src-4.8.7/src/corelib/thread/qthread_unix.cpp	2015-05-07 07:14:48.000000000 -0700
++++ HIDE_qt-everywhere-opensource-src-4.8.7/src/corelib/thread/qthread_unix.cpp	2021-09-03 13:46:48.717248960 -0700
+@@ -114,12 +114,12 @@
+ 
+ enum { ThreadPriorityResetFlag = 0x80000000 };
+ 
+-#if defined(Q_OS_LINUX) && defined(__GLIBC__) && (defined(Q_CC_GNU) || defined(Q_CC_INTEL))
+-#define HAVE_TLS
+-#endif
+-#if defined(Q_CC_XLC) || defined (Q_CC_SUN)
+-#define HAVE_TLS
+-#endif
++// #if defined(Q_OS_LINUX) && defined(__GLIBC__) && (defined(Q_CC_GNU) || defined(Q_CC_INTEL))
++// #define HAVE_TLS
++// #endif
++// #if defined(Q_CC_XLC) || defined (Q_CC_SUN)
++// #define HAVE_TLS
++// #endif
+ 
+ #ifdef HAVE_TLS
+ static __thread QThreadData *currentThreadData = 0;

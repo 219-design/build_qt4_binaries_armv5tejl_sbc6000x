@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -58,23 +62,39 @@ Qt {
 #endif
 
 #if (defined(Q_MOC_RUN) || defined(QT_JAMBI_RUN))
-    Q_ENUMS(Orientation TextFormat BackgroundMode DateFormat ScrollBarPolicy FocusPolicy ContextMenuPolicy CaseSensitivity LayoutDirection ArrowType ShortcutContext TimeSpec)
-    Q_ENUMS(ToolButtonStyle)
-    Q_ENUMS(PenStyle PenCapStyle PenJoinStyle BrushStyle FillRule BGMode ClipOperation GlobalColor)
-    Q_FLAGS(Alignment)
-    Q_FLAGS(Orientations)
-    Q_FLAGS(DockWidgetAreas)
-    Q_ENUMS(DockWidgetArea)
+    // NOTE: Generally, do not add Q_ENUMS if a corresponding Q_FLAGS exists.
+    Q_ENUMS(ScrollBarPolicy FocusPolicy ContextMenuPolicy)
+    Q_ENUMS(ArrowType ToolButtonStyle PenStyle PenCapStyle PenJoinStyle BrushStyle)
+    Q_ENUMS(FillRule MaskMode BGMode ClipOperation SizeMode)
+    Q_ENUMS(BackgroundMode) // Qt3
+    Q_ENUMS(Axis Corner LayoutDirection SizeHint Orientation DropAction)
+    Q_FLAGS(Alignment Orientations DropActions)
+    Q_FLAGS(DockWidgetAreas ToolBarAreas)
+    Q_ENUMS(DockWidgetArea ToolBarArea)
+    Q_ENUMS(TextFormat)
     Q_ENUMS(TextElideMode)
+    Q_ENUMS(DateFormat TimeSpec DayOfWeek)
+    Q_ENUMS(CursorShape GlobalColor)
+    Q_ENUMS(AspectRatioMode TransformationMode)
+    Q_FLAGS(ImageConversionFlags)
+    Q_ENUMS(Key ShortcutContext)
     Q_ENUMS(TextInteractionFlag)
-    Q_ENUMS(WindowModality ToolBarArea DayOfWeek)
-    Q_FLAGS(ToolBarAreas)
-    Q_ENUMS(CursorShape)
     Q_FLAGS(TextInteractionFlags)
-    Q_ENUMS(AspectRatioMode)
-    Q_ENUMS(Key)
     Q_ENUMS(ItemSelectionMode)
+    Q_FLAGS(ItemFlags)
+    Q_ENUMS(CheckState)
+    Q_ENUMS(SortOrder CaseSensitivity)
+    Q_FLAGS(MatchFlags)
     Q_FLAGS(KeyboardModifiers MouseButtons)
+    Q_ENUMS(WindowType WindowState WindowModality WidgetAttribute ApplicationAttribute)
+    Q_ENUMS(InputMethodHint)
+    Q_FLAGS(WindowFlags WindowStates InputMethodHints)
+    Q_ENUMS(ConnectionType)
+#ifndef QT_NO_GESTURES
+    Q_ENUMS(GestureState)
+    Q_ENUMS(GestureType)
+#endif
+    Q_ENUMS(CursorMoveStyle)
 #endif // (defined(Q_MOC_RUN) || defined(QT_JAMBI_RUN))
 
 #if defined(Q_MOC_RUN)
@@ -131,7 +151,8 @@ public:
         NoButton         = 0x00000000,
         LeftButton       = 0x00000001,
         RightButton      = 0x00000002,
-        MidButton        = 0x00000004,
+        MidButton        = 0x00000004, // ### Qt 5: remove me
+        MiddleButton     = MidButton,
         XButton1         = 0x00000008,
         XButton2         = 0x00000010,
         MouseButtonMask  = 0x000000ff
@@ -174,9 +195,15 @@ public:
 #endif
     };
 
-    // Text formatting flags for QPainter::drawText and QLabel
-    // the following four enums can be combined to one integer which
-    // is passed as textflag to drawText and qt_format_text.
+    enum TileRule {
+        StretchTile,
+        RepeatTile,
+        RoundTile
+    };
+
+    // Text formatting flags for QPainter::drawText and QLabel.
+    // The following two enums can be combined to one integer which
+    // is passed as 'flags' to drawText and qt_format_text.
 
     enum AlignmentFlag {
         AlignLeft = 0x0001,
@@ -213,7 +240,9 @@ public:
         TextHideMnemonic = 0x8000,
         TextJustificationForced = 0x10000,
         TextForceLeftToRight = 0x20000,
-        TextForceRightToLeft = 0x40000
+        TextForceRightToLeft = 0x40000,
+        TextLongestVariant = 0x80000,
+        TextBypassShaping = 0x100000
 
 #if defined(QT3_SUPPORT) && !defined(Q_MOC_RUN)
         ,SingleLine = TextSingleLine,
@@ -264,9 +293,22 @@ public:
         WindowContextHelpButtonHint = 0x00010000,
         WindowShadeButtonHint = 0x00020000,
         WindowStaysOnTopHint = 0x00040000,
+        // reserved for Qt3Support:
+        // WMouseNoMask = 0x00080000,
+        // WDestructiveClose = 0x00100000,
+        // WStaticContents = 0x00200000,
+        // WGroupLeader = 0x00400000,
+        // WShowModal = 0x00800000,
+        // WNoMousePropagation = 0x01000000,
+        CustomizeWindowHint = 0x02000000,
+        WindowStaysOnBottomHint = 0x04000000,
+        WindowCloseButtonHint = 0x08000000,
+        MacWindowToolBarButtonHint = 0x10000000,
+        BypassGraphicsProxyWidget = 0x20000000,
         WindowOkButtonHint = 0x00080000,
-        WindowCancelButtonHint = 0x000100000,
-        CustomizeWindowHint = 0x02000000
+        WindowCancelButtonHint = 0x00100000,
+        WindowSoftkeysVisibleHint = 0x40000000,
+        WindowSoftkeysRespondHint = 0x80000000
 
 #ifdef QT3_SUPPORT
         ,
@@ -454,6 +496,39 @@ public:
         WA_X11NetWmWindowTypeCombo = 115,
         WA_X11NetWmWindowTypeDND = 116,
 
+        WA_MacFrameworkScaled  = 117,
+
+        WA_SetWindowModality = 118,
+        WA_WState_WindowOpacitySet = 119, // internal
+        WA_TranslucentBackground = 120,
+
+        WA_AcceptTouchEvents = 121,
+        WA_WState_AcceptedTouchBeginEvent = 122,
+        WA_TouchPadAcceptSingleTouchEvents = 123,
+
+        WA_MergeSoftkeys =  124,
+        WA_MergeSoftkeysRecursively =  125,
+
+#if 0 // these values are reserved for Maemo5 - do not re-use them
+        WA_Maemo5NonComposited = 126,
+        WA_Maemo5StackedWindow = 127,
+#endif
+
+        WA_LockPortraitOrientation = 128,
+        WA_LockLandscapeOrientation = 129,
+        WA_AutoOrientation = 130,
+
+#if 0 // these values are reserved for Maemo5 - do not re-use them
+        WA_Maemo5PortraitOrientation = WA_LockPortraitOrientation,
+        WA_Maemo5LandscapeOrientation = WA_LockLandscapeOrientation,
+        WA_Maemo5AutoOrientation = WA_AutoOrientation,
+        WA_Maemo5ShowProgressIndicator = 131,
+#endif
+
+        WA_X11DoNotAcceptFocus = 132,
+        WA_SymbianNoSystemRotation = 133,
+        WA_MacNoShadow = 134,
+
         // Add new attributes before this line
         WA_AttributeCount
     };
@@ -465,6 +540,13 @@ public:
         AA_DontShowIconsInMenus = 2,
         AA_NativeWindows = 3,
         AA_DontCreateNativeWidgetSiblings = 4,
+        AA_MacPluginApplication = 5,
+        AA_DontUseNativeMenuBar = 6,
+        AA_MacDontSwapCtrlAndMeta = 7,
+        AA_S60DontConstructApplicationPanes = 8,
+        AA_S60DisablePartialScreenInputMode = 9,
+        AA_X11InitThreads = 10,
+        AA_CaptureMultimediaKeys = 11,
 
         // Add new attributes before this line
         AA_AttributeCount
@@ -496,7 +578,10 @@ public:
         DitherMode_Mask         = 0x000000c0,
         AutoDither              = 0x00000000,
         PreferDither            = 0x00000040,
-        AvoidDither             = 0x00000080
+        AvoidDither             = 0x00000080,
+
+        NoOpaqueDetection       = 0x00000100,
+        NoFormatConversion      = 0x00000200
     };
     Q_DECLARE_FLAGS(ImageConversionFlags, ImageConversionFlag)
 
@@ -861,12 +946,10 @@ public:
         Key_Dead_Horn           = 0x01001262,
 
         // multimedia/internet keys - ignored by default - see QKeyEvent c'tor
-
         Key_Back  = 0x01000061,
         Key_Forward  = 0x01000062,
         Key_Stop  = 0x01000063,
         Key_Refresh  = 0x01000064,
-
         Key_VolumeDown = 0x01000070,
         Key_VolumeMute  = 0x01000071,
         Key_VolumeUp = 0x01000072,
@@ -875,7 +958,6 @@ public:
         Key_BassDown = 0x01000075,
         Key_TrebleUp = 0x01000076,
         Key_TrebleDown = 0x01000077,
-
         Key_MediaPlay  = 0x01000080,
         Key_MediaStop  = 0x01000081,
         Key_MediaPrevious  = 0x01000082,
@@ -884,13 +966,13 @@ public:
 #endif
         Key_MediaNext  = 0x01000083,
         Key_MediaRecord = 0x01000084,
-
+        Key_MediaPause = 0x1000085,
+        Key_MediaTogglePlayPause = 0x1000086,
         Key_HomePage  = 0x01000090,
         Key_Favorites  = 0x01000091,
         Key_Search  = 0x01000092,
         Key_Standby = 0x01000093,
         Key_OpenUrl = 0x01000094,
-
         Key_LaunchMail  = 0x010000a0,
         Key_LaunchMedia = 0x010000a1,
         Key_Launch0  = 0x010000a2,
@@ -909,6 +991,101 @@ public:
         Key_LaunchD  = 0x010000af,
         Key_LaunchE  = 0x010000b0,
         Key_LaunchF  = 0x010000b1,
+        Key_MonBrightnessUp = 0x010000b2,
+        Key_MonBrightnessDown = 0x010000b3,
+        Key_KeyboardLightOnOff = 0x010000b4,
+        Key_KeyboardBrightnessUp = 0x010000b5,
+        Key_KeyboardBrightnessDown = 0x010000b6,
+        Key_PowerOff = 0x010000b7,
+        Key_WakeUp = 0x010000b8,
+        Key_Eject = 0x010000b9,
+        Key_ScreenSaver = 0x010000ba,
+        Key_WWW = 0x010000bb,
+        Key_Memo = 0x010000bc,
+        Key_LightBulb = 0x010000bd,
+        Key_Shop = 0x010000be,
+        Key_History = 0x010000bf,
+        Key_AddFavorite = 0x010000c0,
+        Key_HotLinks = 0x010000c1,
+        Key_BrightnessAdjust = 0x010000c2,
+        Key_Finance = 0x010000c3,
+        Key_Community = 0x010000c4,
+        Key_AudioRewind = 0x010000c5,
+        Key_BackForward = 0x010000c6,
+        Key_ApplicationLeft = 0x010000c7,
+        Key_ApplicationRight = 0x010000c8,
+        Key_Book = 0x010000c9,
+        Key_CD = 0x010000ca,
+        Key_Calculator = 0x010000cb,
+        Key_ToDoList = 0x010000cc,
+        Key_ClearGrab = 0x010000cd,
+        Key_Close = 0x010000ce,
+        Key_Copy = 0x010000cf,
+        Key_Cut = 0x010000d0,
+        Key_Display = 0x010000d1,
+        Key_DOS = 0x010000d2,
+        Key_Documents = 0x010000d3,
+        Key_Excel = 0x010000d4,
+        Key_Explorer = 0x010000d5,
+        Key_Game = 0x010000d6,
+        Key_Go = 0x010000d7,
+        Key_iTouch = 0x010000d8,
+        Key_LogOff = 0x010000d9,
+        Key_Market = 0x010000da,
+        Key_Meeting = 0x010000db,
+        Key_MenuKB = 0x010000dc,
+        Key_MenuPB = 0x010000dd,
+        Key_MySites = 0x010000de,
+        Key_News = 0x010000df,
+        Key_OfficeHome = 0x010000e0,
+        Key_Option = 0x010000e1,
+        Key_Paste = 0x010000e2,
+        Key_Phone = 0x010000e3,
+        Key_Calendar = 0x010000e4,
+        Key_Reply = 0x010000e5,
+        Key_Reload = 0x010000e6,
+        Key_RotateWindows = 0x010000e7,
+        Key_RotationPB = 0x010000e8,
+        Key_RotationKB = 0x010000e9,
+        Key_Save = 0x010000ea,
+        Key_Send = 0x010000eb,
+        Key_Spell = 0x010000ec,
+        Key_SplitScreen = 0x010000ed,
+        Key_Support = 0x010000ee,
+        Key_TaskPane = 0x010000ef,
+        Key_Terminal = 0x010000f0,
+        Key_Tools = 0x010000f1,
+        Key_Travel = 0x010000f2,
+        Key_Video = 0x010000f3,
+        Key_Word = 0x010000f4,
+        Key_Xfer = 0x010000f5,
+        Key_ZoomIn = 0x010000f6,
+        Key_ZoomOut = 0x010000f7,
+        Key_Away = 0x010000f8,
+        Key_Messenger = 0x010000f9,
+        Key_WebCam = 0x010000fa,
+        Key_MailForward = 0x010000fb,
+        Key_Pictures = 0x010000fc,
+        Key_Music = 0x010000fd,
+        Key_Battery = 0x010000fe,
+        Key_Bluetooth = 0x010000ff,
+        Key_WLAN = 0x01000100,
+        Key_UWB = 0x01000101,
+        Key_AudioForward = 0x01000102,
+        Key_AudioRepeat = 0x01000103,
+        Key_AudioRandomPlay = 0x01000104,
+        Key_Subtitle = 0x01000105,
+        Key_AudioCycleTrack = 0x01000106,
+        Key_Time = 0x01000107,
+        Key_Hibernate = 0x01000108,
+        Key_View = 0x01000109,
+        Key_TopMenu = 0x0100010a,
+        Key_PowerDown = 0x0100010b,
+        Key_Suspend = 0x0100010c,
+        Key_ContrastAdjust = 0x0100010d,
+
+        Key_LaunchG  = 0x0100010e,
+        Key_LaunchH  = 0x0100010f,
 
         Key_MediaLast = 0x0100ffff,
 
@@ -933,9 +1110,15 @@ public:
         Key_Context2 = 0x01100001,
         Key_Context3 = 0x01100002,
         Key_Context4 = 0x01100003,
-        Key_Call = 0x01100004,
-        Key_Hangup = 0x01100005,
+        Key_Call = 0x01100004,      // set absolute state to in a call (do not toggle state)
+        Key_Hangup = 0x01100005,    // set absolute state to hang up (do not toggle state)
         Key_Flip = 0x01100006,
+        Key_ToggleCallHangup = 0x01100007, // a toggle key for answering, or hanging up, based on current call state
+        Key_VoiceDial = 0x01100008,
+        Key_LastNumberRedial = 0x01100009,
+
+        Key_Camera = 0x01100020,
+        Key_CameraFocus = 0x01100021,
 
         Key_unknown = 0x01ffffff
     };
@@ -1096,7 +1279,10 @@ public:
         BusyCursor,
         OpenHandCursor,
         ClosedHandCursor,
-        LastCursor = ClosedHandCursor,
+        DragCopyCursor,
+        DragMoveCursor,
+        DragLinkCursor,
+        LastCursor = DragLinkCursor,
         BitmapCursor = 24,
         CustomCursor = 25
 
@@ -1142,6 +1328,7 @@ public:
     typedef AspectRatioMode ScaleMode;
 #endif
 
+    // This is for Q3TextEdit only, actually.
     enum AnchorAttribute {
         AnchorName,
         AnchorHref
@@ -1284,7 +1471,8 @@ public:
         DirectConnection,
         QueuedConnection,
         AutoCompatConnection,
-        BlockingQueuedConnection
+        BlockingQueuedConnection,
+        UniqueConnection =  0x80
     };
 
     enum ShortcutContext {
@@ -1355,20 +1543,56 @@ public:
         ImFont,
         ImCursorPosition,
         ImSurroundingText,
-        ImCurrentSelection
+        ImCurrentSelection,
+        ImMaximumTextLength,
+        ImAnchorPosition
     };
+
+    enum InputMethodHint {
+        ImhNone = 0x0,
+        ImhHiddenText = 0x1,
+        ImhNoAutoUppercase = 0x2,
+        ImhPreferNumbers = 0x4,
+        ImhPreferUppercase = 0x8,
+        ImhPreferLowercase = 0x10,
+        ImhNoPredictiveText = 0x20,
+
+        ImhDigitsOnly = 0x10000,
+        ImhFormattedNumbersOnly = 0x20000,
+        ImhUppercaseOnly = 0x40000,
+        ImhLowercaseOnly = 0x80000,
+        ImhDialableCharactersOnly = 0x100000,
+        ImhEmailCharactersOnly = 0x200000,
+        ImhUrlCharactersOnly = 0x400000,
+
+        ImhExclusiveInputMask = 0xffff0000
+    };
+    Q_DECLARE_FLAGS(InputMethodHints, InputMethodHint)
 
     enum ToolButtonStyle {
         ToolButtonIconOnly,
         ToolButtonTextOnly,
         ToolButtonTextBesideIcon,
-        ToolButtonTextUnderIcon
+        ToolButtonTextUnderIcon,
+        ToolButtonFollowStyle
     };
 
     enum LayoutDirection {
         LeftToRight,
-        RightToLeft
+        RightToLeft,
+        LayoutDirectionAuto
     };
+
+    enum AnchorPoint {
+        AnchorLeft = 0,
+        AnchorHorizontalCenter,
+        AnchorRight,
+        AnchorTop,
+        AnchorVerticalCenter,
+        AnchorBottom
+    };
+
+
 
     enum DropAction {
         CopyAction = 0x1,
@@ -1404,8 +1628,15 @@ public:
         // Accessibility
         AccessibleTextRole = 11,
         AccessibleDescriptionRole = 12,
-        // More Metadata
+        // More general purpose
         SizeHintRole = 13,
+        InitialSortOrderRole = 14,
+        // Internal UiLib roles. Start worrying when public roles go that high.
+        DisplayPropertyRole = 27,
+        DecorationPropertyRole = 28,
+        ToolTipPropertyRole = 29,
+        StatusTipPropertyRole = 30,
+        WhatsThisPropertyRole = 31,
         // Reserved
         UserRole = 32
     };
@@ -1442,8 +1673,10 @@ public:
     typedef void *HANDLE;
 #elif defined(Q_WS_X11)
     typedef unsigned long HANDLE;
-#elif defined(Q_WS_QWS)
+#elif defined(Q_WS_QWS) || defined(Q_WS_QPA)
     typedef void * HANDLE;
+#elif defined(Q_OS_SYMBIAN)
+    typedef unsigned long int HANDLE; // equivalent to TUint32
 #endif
     typedef WindowFlags WFlags;
 
@@ -1492,11 +1725,76 @@ public:
         BottomLeftSection,
         TitleBarArea    // For move
     };
+
+    enum Initialization {
+        Uninitialized
+    };
+
+    enum CoordinateSystem {
+        DeviceCoordinates,
+        LogicalCoordinates
+    };
+
+    enum TouchPointState {
+        TouchPointPressed    = 0x01,
+        TouchPointMoved      = 0x02,
+        TouchPointStationary = 0x04,
+        TouchPointReleased   = 0x08,
+        TouchPointStateMask  = 0x0f,
+
+        TouchPointPrimary    = 0x10
+    };
+    Q_DECLARE_FLAGS(TouchPointStates, TouchPointState)
+
+#ifndef QT_NO_GESTURES
+    enum GestureState
+    {
+        NoGesture,
+        GestureStarted  = 1,
+        GestureUpdated  = 2,
+        GestureFinished = 3,
+        GestureCanceled = 4
+    };
+
+    enum GestureType
+    {
+        TapGesture        = 1,
+        TapAndHoldGesture = 2,
+        PanGesture        = 3,
+        PinchGesture      = 4,
+        SwipeGesture      = 5,
+
+        CustomGesture     = 0x0100,
+
+        LastGestureType   = ~0u
+    };
+
+    enum GestureFlag
+    {
+        DontStartGestureOnChildren = 0x01,
+        ReceivePartialGestures     = 0x02,
+        IgnoredGesturesPropagateToParent = 0x04
+    };
+    Q_DECLARE_FLAGS(GestureFlags, GestureFlag)
+#endif // QT_NO_GESTURES
+
+    enum NavigationMode
+    {
+        NavigationModeNone,
+        NavigationModeKeypadTabOrder,
+        NavigationModeKeypadDirectional,
+        NavigationModeCursorAuto,
+        NavigationModeCursorForceVisible
+    };
+
+    enum CursorMoveStyle {
+        LogicalMoveStyle,
+        VisualMoveStyle
+    };
 }
 #ifdef Q_MOC_RUN
  ;
 #endif
-
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::MouseButtons)
 Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::Orientations)
@@ -1511,6 +1809,11 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::DropActions)
 Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::ItemFlags)
 Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::MatchFlags)
 Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::TextInteractionFlags)
+Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::InputMethodHints)
+Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::TouchPointStates)
+#ifndef QT_NO_GESTURES
+Q_DECLARE_OPERATORS_FOR_FLAGS(Qt::GestureFlags)
+#endif
 
 typedef bool (*qInternalCallback)(void **);
 
@@ -1526,7 +1829,9 @@ public:
         Pbuffer       = 0x06,    // GL pbuffer
         FramebufferObject = 0x07, // GL framebuffer object
         CustomRaster  = 0x08,
-        MacQuartz     = 0x09
+        MacQuartz     = 0x09,
+        PaintBuffer   = 0x0a,
+        OpenGL        = 0x0b
     };
     enum RelayoutType {
         RelayoutNormal,

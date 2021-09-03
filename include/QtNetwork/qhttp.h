@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -42,6 +46,7 @@
 #include <QtCore/qstringlist.h>
 #include <QtCore/qmap.h>
 #include <QtCore/qpair.h>
+#include <QtCore/qscopedpointer.h>
 
 QT_BEGIN_HEADER
 
@@ -104,7 +109,7 @@ protected:
 
     QHttpHeader(QHttpHeaderPrivate &dd, const QString &str = QString());
     QHttpHeader(QHttpHeaderPrivate &dd, const QHttpHeader &header);
-    QHttpHeaderPrivate *d_ptr;
+    QScopedPointer<QHttpHeaderPrivate> d_ptr;
 
 private:
     Q_DECLARE_PRIVATE(QHttpHeader)
@@ -174,7 +179,7 @@ public:
         ConnectionModeHttp,
         ConnectionModeHttps
     };
-    
+
     explicit QHttp(QObject *parent = 0);
     QHttp(const QString &hostname, quint16 port = 80, QObject *parent = 0);
     QHttp(const QString &hostname, ConnectionMode mode, quint16 port = 0, QObject *parent = 0);
@@ -197,14 +202,14 @@ public:
         UnexpectedClose,
         InvalidResponseHeader,
         WrongContentLength,
-        Aborted, 
+        Aborted,
         AuthenticationRequiredError,
         ProxyAuthenticationRequiredError
     };
 
     int setHost(const QString &hostname, quint16 port = 80);
     int setHost(const QString &hostname, ConnectionMode mode, quint16 port = 0);
-    
+
     int setSocket(QTcpSocket *socket);
     int setUser(const QString &username, const QString &password = QString());
 
@@ -285,8 +290,12 @@ private:
     Q_PRIVATE_SLOT(d_func(), void _q_slotError(QAbstractSocket::SocketError))
     Q_PRIVATE_SLOT(d_func(), void _q_slotClosed())
     Q_PRIVATE_SLOT(d_func(), void _q_slotBytesWritten(qint64 numBytes))
+#ifndef QT_NO_OPENSSL
+    Q_PRIVATE_SLOT(d_func(), void _q_slotEncryptedBytesWritten(qint64 numBytes))
+#endif
     Q_PRIVATE_SLOT(d_func(), void _q_slotDoFinished())
     Q_PRIVATE_SLOT(d_func(), void _q_slotSendRequest())
+    Q_PRIVATE_SLOT(d_func(), void _q_continuePost())
 
     friend class QHttpNormalRequest;
     friend class QHttpSetHostRequest;

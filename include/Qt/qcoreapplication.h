@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -74,7 +78,23 @@ class Q_CORE_EXPORT QCoreApplication : public QObject
 
     Q_DECLARE_PRIVATE(QCoreApplication)
 public:
-    QCoreApplication(int &argc, char **argv);
+    enum { ApplicationFlags = QT_VERSION
+#if !defined(QT3_SUPPORT)
+        | 0x01000000
+#endif
+    };
+
+#if defined(QT_BUILD_CORE_LIB) || defined(qdoc)
+    QCoreApplication(int &argc, char **argv); // ### Qt5 remove
+#endif
+#if !defined(qdoc)
+    QCoreApplication(int &argc, char **argv, int
+#if !defined(QT_BUILD_CORE_LIB)
+        = ApplicationFlags
+#endif
+        );
+#endif
+
     ~QCoreApplication();
 
 #ifdef QT_DEPRECATED
@@ -135,11 +155,11 @@ public:
     // ### Qt 5: merge
     static QString translate(const char * context,
                              const char * key,
-                             const char * comment = 0,
+                             const char * disambiguation = 0,
                              Encoding encoding = CodecForTr);
     static QString translate(const char * context,
                              const char * key,
-                             const char * comment,
+                             const char * disambiguation,
                              Encoding encoding, int n);
 
     static void flush();
@@ -161,7 +181,7 @@ public:
     virtual bool winEventFilter(MSG *message, long *result);
 #endif
 
-#ifdef Q_OS_UNIX
+#if defined(Q_OS_UNIX) && !defined(Q_OS_SYMBIAN)
     static void watchUnixSignal(int signal, bool watch);
 #endif
 
@@ -191,6 +211,8 @@ private:
     void init();
 
     static QCoreApplication *self;
+    
+    Q_DISABLE_COPY(QCoreApplication)
 
     friend class QEventDispatcherUNIXPrivate;
     friend class QApplication;
@@ -244,16 +266,16 @@ inline QString QCoreApplication::translate(const char *, const char *sourceText,
 // ### merge the four functions into two (using "int n = -1")
 #define Q_DECLARE_TR_FUNCTIONS(context) \
 public: \
-    static inline QString tr(const char *sourceText, const char *comment = 0) \
-        { return QCoreApplication::translate(#context, sourceText, comment); } \
-    static inline QString trUtf8(const char *sourceText, const char *comment = 0) \
-        { return QCoreApplication::translate(#context, sourceText, comment, \
+    static inline QString tr(const char *sourceText, const char *disambiguation = 0) \
+        { return QCoreApplication::translate(#context, sourceText, disambiguation); } \
+    static inline QString trUtf8(const char *sourceText, const char *disambiguation = 0) \
+        { return QCoreApplication::translate(#context, sourceText, disambiguation, \
                                              QCoreApplication::UnicodeUTF8); } \
-    static inline QString tr(const char *sourceText, const char *comment, int n) \
-        { return QCoreApplication::translate(#context, sourceText, comment, \
+    static inline QString tr(const char *sourceText, const char *disambiguation, int n) \
+        { return QCoreApplication::translate(#context, sourceText, disambiguation, \
                                              QCoreApplication::CodecForTr, n); } \
-    static inline QString trUtf8(const char *sourceText, const char *comment, int n) \
-        { return QCoreApplication::translate(#context, sourceText, comment, \
+    static inline QString trUtf8(const char *sourceText, const char *disambiguation, int n) \
+        { return QCoreApplication::translate(#context, sourceText, disambiguation, \
                                              QCoreApplication::UnicodeUTF8, n); } \
 private:
 

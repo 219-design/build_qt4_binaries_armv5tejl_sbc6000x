@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -39,7 +43,9 @@
 #define QLINEEDIT_H
 
 #include <QtGui/qframe.h>
+#include <QtGui/qtextcursor.h>
 #include <QtCore/qstring.h>
+#include <QtCore/qmargins.h>
 
 QT_BEGIN_HEADER
 
@@ -78,6 +84,8 @@ class Q_GUI_EXPORT QLineEdit : public QWidget
     Q_PROPERTY(bool undoAvailable READ isUndoAvailable)
     Q_PROPERTY(bool redoAvailable READ isRedoAvailable)
     Q_PROPERTY(bool acceptableInput READ hasAcceptableInput)
+    Q_PROPERTY(QString placeholderText READ placeholderText WRITE setPlaceholderText)
+    Q_PROPERTY(Qt::CursorMoveStyle cursorMoveStyle READ cursorMoveStyle WRITE setCursorMoveStyle)
 
 public:
     explicit QLineEdit(QWidget* parent=0);
@@ -92,6 +100,9 @@ public:
     QString text() const;
 
     QString displayText() const;
+
+    QString placeholderText() const;
+    void setPlaceholderText(const QString &);
 
     int maxLength() const;
     void setMaxLength(int);
@@ -149,9 +160,17 @@ public:
     void setDragEnabled(bool b);
     bool dragEnabled() const;
 
+    void setCursorMoveStyle(Qt::CursorMoveStyle style);
+    Qt::CursorMoveStyle cursorMoveStyle() const;
+
     QString inputMask() const;
     void setInputMask(const QString &inputMask);
     bool hasAcceptableInput() const;
+
+    void setTextMargins(int left, int top, int right, int bottom);
+    void setTextMargins(const QMargins &margins);
+    void getTextMargins(int *left, int *top, int *right, int *bottom) const;
+    QMargins textMargins() const;
 
 public Q_SLOTS:
     void setText(const QString &);
@@ -254,17 +273,23 @@ Q_SIGNALS:
 
 private:
     friend class QAbstractSpinBox;
+    friend class QAccessibleLineEdit;
 #ifdef QT_KEYPAD_NAVIGATION
     friend class QDateTimeEdit;
 #endif
     Q_DISABLE_COPY(QLineEdit)
     Q_DECLARE_PRIVATE(QLineEdit)
-    Q_PRIVATE_SLOT(d_func(), void _q_clipboardChanged())
     Q_PRIVATE_SLOT(d_func(), void _q_handleWindowActivate())
-    Q_PRIVATE_SLOT(d_func(), void _q_deleteSelected())
+    Q_PRIVATE_SLOT(d_func(), void _q_textEdited(const QString &))
+    Q_PRIVATE_SLOT(d_func(), void _q_cursorPositionChanged(int, int))
 #ifndef QT_NO_COMPLETER
     Q_PRIVATE_SLOT(d_func(), void _q_completionHighlighted(QString))
 #endif
+#ifdef QT_KEYPAD_NAVIGATION
+    Q_PRIVATE_SLOT(d_func(), void _q_editFocusChange(bool))
+#endif
+    Q_PRIVATE_SLOT(d_func(), void _q_selectionChanged())
+    Q_PRIVATE_SLOT(d_func(), void _q_updateNeeded(const QRect &))
 };
 
 #endif // QT_NO_LINEEDIT

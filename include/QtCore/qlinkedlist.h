@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -81,6 +85,11 @@ public:
     inline QLinkedList(const QLinkedList<T> &l) : d(l.d) { d->ref.ref(); if (!d->sharable) detach(); }
     ~QLinkedList();
     QLinkedList<T> &operator=(const QLinkedList<T> &);
+#ifdef Q_COMPILER_RVALUE_REFS
+    inline QLinkedList<T> &operator=(QLinkedList<T> &&other)
+    { qSwap(d, other.d); return *this; }
+#endif
+    inline void swap(QLinkedList<T> &other) { qSwap(d, other.d); }
     bool operator==(const QLinkedList<T> &l) const;
     inline bool operator!=(const QLinkedList<T> &l) const { return !(*this == l); }
 
@@ -89,6 +98,7 @@ public:
     { if (d->ref != 1) detach_helper(); }
     inline bool isDetached() const { return d->ref == 1; }
     inline void setSharable(bool sharable) { if (!sharable) detach(); d->sharable = sharable; }
+    inline bool isSharedWith(const QLinkedList<T> &other) const { return d == other.d; }
 
     inline bool isEmpty() const { return d->size == 0; }
 
@@ -109,7 +119,7 @@ public:
     {
     public:
         typedef std::bidirectional_iterator_tag  iterator_category;
-        typedef ptrdiff_t  difference_type;
+        typedef qptrdiff difference_type;
         typedef T value_type;
         typedef T *pointer;
         typedef T &reference;
@@ -142,7 +152,7 @@ public:
     {
     public:
         typedef std::bidirectional_iterator_tag  iterator_category;
-        typedef ptrdiff_t  difference_type;
+        typedef qptrdiff difference_type;
         typedef T value_type;
         typedef const T *pointer;
         typedef const T &reference;
@@ -189,6 +199,8 @@ public:
     const T& last() const { Q_ASSERT(!isEmpty()); return *(--end()); }
     inline void removeFirst() { Q_ASSERT(!isEmpty()); erase(begin()); }
     inline void removeLast() { Q_ASSERT(!isEmpty()); erase(--end()); }
+    inline bool startsWith(const T &t) const { return !isEmpty() && first() == t; }
+    inline bool endsWith(const T &t) const { return !isEmpty() && last() == t; }
 
     // stl compatibility
     inline void push_back(const T &t) { append(t); }
@@ -206,7 +218,7 @@ public:
     typedef const value_type *const_pointer;
     typedef value_type &reference;
     typedef const value_type &const_reference;
-    typedef ptrdiff_t difference_type;
+    typedef qptrdiff difference_type;
 
 #ifndef QT_NO_STL
     static inline QLinkedList<T> fromStdList(const std::list<T> &list)
@@ -259,15 +271,22 @@ void QLinkedList<T>::detach_helper()
     x.d->ref = 1;
     x.d->size = d->size;
     x.d->sharable = true;
-    Node *i = e->n, *j = x.e;
-    while (i != e) {
-        j->n = new Node(i->t);
-        j->n->p = j;
-        i = i->n;
-        j = j->n;
+    Node *original = e->n;
+    Node *copy = x.e;
+    while (original != e) {
+        QT_TRY {
+            copy->n = new Node(original->t);
+            copy->n->p = copy;
+            original = original->n;
+            copy = copy->n;
+        } QT_CATCH(...) {
+            copy->n = x.e;
+            free(x.d);
+            QT_RETHROW;
+        }
     }
-    j->n = x.e;
-    x.e->p = j;
+    copy->n = x.e;
+    x.e->p = copy;
     if (!d->ref.deref())
         free(d);
     d = x.d;
@@ -298,10 +317,11 @@ template <typename T>
 QLinkedList<T> &QLinkedList<T>::operator=(const QLinkedList<T> &l)
 {
     if (d != l.d) {
-        l.d->ref.ref();
+        QLinkedListData *o = l.d;
+        o->ref.ref();
         if (!d->ref.deref())
             free(d);
-        d = l.d;
+        d = o;
         if (!d->sharable)
             detach_helper();
     }
@@ -468,14 +488,21 @@ QLinkedList<T> &QLinkedList<T>::operator+=(const QLinkedList<T> &l)
     detach();
     int n = l.d->size;
     d->size += n;
-    Node *o = l.e->n;
+    Node *original = l.e->n;
     while (n--) {
-        Node *i = new Node(o->t);
-        o = o->n;
-        i->n = e;
-        i->p = e->p;
-        i->p->n = i;
-        e->p = i;
+        QT_TRY {
+            Node *copy = new Node(original->t);
+            original = original->n;
+            copy->n = e;
+            copy->p = e->p;
+            copy->p->n = copy;
+            e->p = copy;
+        } QT_CATCH(...) {
+            // restore the original list
+            while (n++<d->size)
+                removeLast();
+            QT_RETHROW;
+        }
     }
     return *this;
 }

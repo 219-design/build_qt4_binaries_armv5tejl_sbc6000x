@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -40,6 +44,7 @@
 
 #include <QtCore/qstring.h>
 #include <QtCore/qnamespace.h>
+#include <QtCore/qsharedpointer.h>
 
 QT_BEGIN_HEADER
 
@@ -49,6 +54,11 @@ QT_MODULE(Core)
 
 class Q_CORE_EXPORT QDate
 {
+public:
+    enum MonthNameType {
+        DateFormat = 0,
+        StandaloneFormat
+    };
 public:
     QDate() { jd = 0; }
     QDate(int y, int m, int d);
@@ -70,17 +80,24 @@ public:
     static QT3_SUPPORT QString monthName(int month) { return shortMonthName(month); }
     static QT3_SUPPORT QString dayName(int weekday) { return shortDayName(weekday); }
 #endif
+    // ### Qt 5: merge these functions.
     static QString shortMonthName(int month);
+    static QString shortMonthName(int month, MonthNameType type);
     static QString shortDayName(int weekday);
+    static QString shortDayName(int weekday, MonthNameType type);
     static QString longMonthName(int month);
+    static QString longMonthName(int month, MonthNameType type);
     static QString longDayName(int weekday);
+    static QString longDayName(int weekday, MonthNameType type);
 #endif // QT_NO_TEXTDATE
 #ifndef QT_NO_DATESTRING
     QString toString(Qt::DateFormat f = Qt::TextDate) const;
     QString toString(const QString &format) const;
 #endif
     bool setYMD(int y, int m, int d);
-    bool setDate(int year, int month, int date);
+    bool setDate(int year, int month, int day);
+
+    void getDate(int *year, int *month, int *day);
 
     QDate addDays(int days) const;
     QDate addMonths(int months) const;
@@ -213,10 +230,12 @@ public:
     QDate date() const;
     QTime time() const;
     Qt::TimeSpec timeSpec() const;
+    qint64 toMSecsSinceEpoch() const;
     uint toTime_t() const;
     void setDate(const QDate &date);
     void setTime(const QTime &time);
     void setTimeSpec(Qt::TimeSpec spec);
+    void setMSecsSinceEpoch(qint64 msecs);
     void setTime_t(uint secsSince1Jan1970UTC);
 #ifndef QT_NO_DATESTRING
     QString toString(Qt::DateFormat f = Qt::TextDate) const;
@@ -232,6 +251,7 @@ public:
     inline QDateTime toUTC() const { return toTimeSpec(Qt::UTC); }
     int daysTo(const QDateTime &) const;
     int secsTo(const QDateTime &) const;
+    qint64 msecsTo(const QDateTime &) const;
 
     bool operator==(const QDateTime &other) const;
     inline bool operator!=(const QDateTime &other) const { return !(*this == other); }
@@ -244,11 +264,14 @@ public:
     int utcOffset() const;
 
     static QDateTime currentDateTime();
+    static QDateTime currentDateTimeUtc();
 #ifndef QT_NO_DATESTRING
     static QDateTime fromString(const QString &s, Qt::DateFormat f = Qt::TextDate);
     static QDateTime fromString(const QString &s, const QString &format);
 #endif
     static QDateTime fromTime_t(uint secsSince1Jan1970UTC);
+    static QDateTime fromMSecsSinceEpoch(qint64 msecs);
+    static qint64 currentMSecsSinceEpoch();
 
 #ifdef QT3_SUPPORT
     inline QT3_SUPPORT void setTime_t(uint secsSince1Jan1970UTC, Qt::TimeSpec spec) {
@@ -268,7 +291,7 @@ public:
 private:
     friend class QDateTimePrivate;
     void detach();
-    QDateTimePrivate *d;
+    QExplicitlySharedDataPointer<QDateTimePrivate> d;
 
 #ifndef QT_NO_DATASTREAM
     friend Q_CORE_EXPORT QDataStream &operator<<(QDataStream &, const QDateTime &);

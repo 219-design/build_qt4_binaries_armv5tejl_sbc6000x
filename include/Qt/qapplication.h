@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -57,6 +61,10 @@
 
 QT_BEGIN_HEADER
 
+#if defined(Q_OS_SYMBIAN)
+class CApaApplication;
+#endif
+
 QT_BEGIN_NAMESPACE
 
 QT_MODULE(Gui)
@@ -66,11 +74,18 @@ class QDesktopWidget;
 class QStyle;
 class QEventLoop;
 class QIcon;
+#ifndef QT_NO_IM
 class QInputContext;
+#endif
 template <typename T> class QList;
 class QLocale;
 #if defined(Q_WS_QWS)
 class QDecoration;
+#elif defined(Q_WS_QPA)
+class QPlatformNativeInterface;
+#endif
+#if defined(Q_OS_SYMBIAN)
+class QSymbianEvent;
 #endif
 
 class QApplication;
@@ -79,6 +94,7 @@ class QApplicationPrivate;
 #undef qApp
 #endif
 #define qApp (static_cast<QApplication *>(QCoreApplication::instance()))
+
 
 class Q_GUI_EXPORT QApplication : public QCoreApplication
 {
@@ -98,19 +114,28 @@ class Q_GUI_EXPORT QApplication : public QCoreApplication
 #ifndef QT_NO_STYLE_STYLESHEET
     Q_PROPERTY(QString styleSheet READ styleSheet WRITE setStyleSheet)
 #endif
-#ifdef Q_OS_WINCE
+#ifdef Q_WS_WINCE
     Q_PROPERTY(int autoMaximizeThreshold READ autoMaximizeThreshold WRITE setAutoMaximizeThreshold)
 #endif
+    Q_PROPERTY(bool autoSipEnabled READ autoSipEnabled WRITE setAutoSipEnabled)
 
 public:
     enum Type { Tty, GuiClient, GuiServer };
+
+#ifdef Q_OS_SYMBIAN
+    typedef CApaApplication * (*QS60MainApplicationFactory)();
+#endif
+
 #ifndef qdoc
-    QApplication(int &argc, char **argv, int = QT_VERSION);
-    QApplication(int &argc, char **argv, bool GUIenabled, int = QT_VERSION);
-    QApplication(int &argc, char **argv, Type, int = QT_VERSION);
+    QApplication(int &argc, char **argv, int = ApplicationFlags);
+    QApplication(int &argc, char **argv, bool GUIenabled, int = ApplicationFlags);
+    QApplication(int &argc, char **argv, Type, int = ApplicationFlags);
 #if defined(Q_WS_X11)
-    QApplication(Display* dpy, Qt::HANDLE visual = 0, Qt::HANDLE cmap = 0, int = QT_VERSION);
-    QApplication(Display *dpy, int &argc, char **argv, Qt::HANDLE visual = 0, Qt::HANDLE cmap= 0, int = QT_VERSION);
+    QApplication(Display* dpy, Qt::HANDLE visual = 0, Qt::HANDLE cmap = 0, int = ApplicationFlags);
+    QApplication(Display *dpy, int &argc, char **argv, Qt::HANDLE visual = 0, Qt::HANDLE cmap= 0, int = ApplicationFlags);
+#endif
+#if defined(Q_OS_SYMBIAN)
+    QApplication(QApplication::QS60MainApplicationFactory factory, int &argc, char **argv, int = ApplicationFlags);
 #endif
 #endif
     virtual ~QApplication();
@@ -123,6 +148,7 @@ public:
     enum ColorSpec { NormalColor=0, CustomColor=1, ManyColor=2 };
     static int colorSpec();
     static void setColorSpec(int);
+    static void setGraphicsSystem(const QString &);
 
 #ifndef QT_NO_CURSOR
     static QCursor *overrideCursor();
@@ -174,6 +200,7 @@ public:
     static void alert(QWidget *widget, int duration = 0);
 
     static Qt::KeyboardModifiers keyboardModifiers();
+    static Qt::KeyboardModifiers queryKeyboardModifiers();
     static Qt::MouseButtons mouseButtons();
 
     static void setDesktopSettingsAware(bool);
@@ -217,6 +244,10 @@ public:
     virtual int x11ClientMessage(QWidget*, XEvent*, bool passive_only);
     int x11ProcessEvent(XEvent*);
 #endif
+#if defined(Q_OS_SYMBIAN)
+    int symbianProcessEvent(const QSymbianEvent *event);
+    virtual bool symbianEventFilter(const QSymbianEvent *event);
+#endif
 #if defined(Q_WS_QWS)
     virtual bool qwsEventFilter(QWSEvent *);
     int qwsProcessEvent(QWSEvent*);
@@ -228,12 +259,15 @@ public:
 #endif
 #endif
 
+#if defined(Q_WS_QPA)
+    static QPlatformNativeInterface *platformNativeInterface();
+#endif
+
 
 #if defined(Q_WS_WIN)
     void winFocus(QWidget *, bool);
     static void winMouseButtonUp();
 #endif
-
 #ifndef QT_NO_SESSIONMANAGER
     // session management
     bool isSessionRestored() const;
@@ -242,8 +276,11 @@ public:
     virtual void commitData(QSessionManager& sm);
     virtual void saveState(QSessionManager& sm);
 #endif
+
+#ifndef QT_NO_IM
     void setInputContext(QInputContext *);
     QInputContext *inputContext() const;
+#endif
 
     static QLocale keyboardInputLocale();
     static Qt::LayoutDirection keyboardInputDirection();
@@ -256,16 +293,23 @@ public:
     static bool quitOnLastWindowClosed();
 
 #ifdef QT_KEYPAD_NAVIGATION
-    static void setKeypadNavigationEnabled(bool);
+    static Q_DECL_DEPRECATED void setKeypadNavigationEnabled(bool);
     static bool keypadNavigationEnabled();
+    static void setNavigationMode(Qt::NavigationMode mode);
+    static Qt::NavigationMode navigationMode();
 #endif
 
 Q_SIGNALS:
     void lastWindowClosed();
     void focusChanged(QWidget *old, QWidget *now);
+    void fontDatabaseChanged();
 #ifndef QT_NO_SESSIONMANAGER
     void commitDataRequest(QSessionManager &sessionManager);
     void saveStateRequest(QSessionManager &sessionManager);
+#endif
+#ifdef Q_OS_SYMBIAN
+    void aboutToReleaseGpuResources();
+    void aboutToUseGpuResources();
 #endif
 
 public:
@@ -274,10 +318,12 @@ public Q_SLOTS:
 #ifndef QT_NO_STYLE_STYLESHEET
     void setStyleSheet(const QString& sheet);
 #endif
-#ifdef Q_OS_WINCE
+#ifdef Q_WS_WINCE
     void setAutoMaximizeThreshold(const int threshold);
     int autoMaximizeThreshold() const;
 #endif
+    void setAutoSipEnabled(const bool enabled);
+    bool autoSipEnabled() const;
     static void closeAllWindows();
     static void aboutQt();
 
@@ -308,7 +354,7 @@ public:
     { if (replace) changeOverrideCursor(cursor); else setOverrideCursor(cursor); }
 #  endif
     inline static QT3_SUPPORT bool hasGlobalMouseTracking() {return true;}
-    inline static QT3_SUPPORT void setGlobalMouseTracking(bool) {};
+    inline static QT3_SUPPORT void setGlobalMouseTracking(bool) {}
     inline static QT3_SUPPORT void flushX() { flush(); }
     static inline QT3_SUPPORT void setWinStyleHighlightColor(const QColor &c) {
         QPalette p(palette());
@@ -318,7 +364,7 @@ public:
     static inline QT3_SUPPORT const QColor &winStyleHighlightColor()
         { return palette().color(QPalette::Active, QPalette::Highlight); }
     static inline QT3_SUPPORT void setPalette(const QPalette &pal, bool, const char* className = 0)
-        { setPalette(pal, className); };
+        { setPalette(pal, className); }
     static inline QT3_SUPPORT void setFont(const QFont &font, bool, const char* className = 0)
         { setFont(font, className); }
 
@@ -336,12 +382,19 @@ public:
     QApplication(Display* dpy, Qt::HANDLE visual = 0, Qt::HANDLE cmap = 0);
     QApplication(Display *dpy, int &argc, char **argv, Qt::HANDLE visual = 0, Qt::HANDLE cmap= 0);
 #endif
+#if defined(Q_OS_SYMBIAN) || defined(qdoc)
+    QApplication(QApplication::QS60MainApplicationFactory factory, int &argc, char **argv);
+#endif
 #endif
 
 private:
     Q_DISABLE_COPY(QApplication)
     Q_DECLARE_PRIVATE(QApplication)
 
+    friend class QGraphicsWidget;
+    friend class QGraphicsItem;
+    friend class QGraphicsScene;
+    friend class QGraphicsScenePrivate;
     friend class QWidget;
     friend class QWidgetPrivate;
     friend class QETWidget;
@@ -350,8 +403,11 @@ private:
     friend class QWidgetAnimator;
 #ifndef QT_NO_SHORTCUT
     friend class QShortcut;
+    friend class QLineEdit;
+    friend class QTextControl;
 #endif
     friend class QAction;
+    friend class QFontDatabasePrivate;
 
 #if defined(Q_WS_QWS)
     friend class QInputContext;
@@ -359,9 +415,18 @@ private:
     friend class QDirectPainter;
     friend class QDirectPainterPrivate;
 #endif
+#ifndef QT_NO_GESTURES
+    friend class QGestureManager;
+#endif
 
 #if defined(Q_WS_MAC) || defined(Q_WS_X11)
     Q_PRIVATE_SLOT(d_func(), void _q_alertTimeOut())
+#endif
+#if defined(QT_RX71_MULTITOUCH)
+    Q_PRIVATE_SLOT(d_func(), void _q_readRX71MultiTouchEvents())
+#endif
+#if defined(Q_OS_SYMBIAN)
+    Q_PRIVATE_SLOT(d_func(), void _q_aboutToQuit())
 #endif
 };
 

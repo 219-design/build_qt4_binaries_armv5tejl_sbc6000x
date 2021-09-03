@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -101,7 +105,7 @@ public:
 
     enum Category
     {
-        NoCategory,
+        NoCategory,    // ### Qt 5: replace with Other_NotAssigned
 
         Mark_NonSpacing,          //   Mn
         Mark_SpacingCombining,    //   Mc
@@ -140,7 +144,7 @@ public:
         Symbol_Modifier,          //   Sk
         Symbol_Other,             //   So
 
-        Punctuation_Dask = Punctuation_Dash // oops
+        Punctuation_Dask = Punctuation_Dash // ### Qt 5: remove
     };
 
     enum Direction
@@ -206,7 +210,7 @@ public:
     };
 
     enum UnicodeVersion {
-        Unicode_Unassigned,
+        Unicode_Unassigned,    // ### Qt 5: assign with some constantly big value
         Unicode_1_1,
         Unicode_2_0,
         Unicode_2_1_2,
@@ -281,6 +285,15 @@ public:
     inline void setCell(uchar cell);
     inline void setRow(uchar row);
 
+    static inline bool isHighSurrogate(uint ucs4) {
+        return ((ucs4 & 0xfffffc00) == 0xd800);
+    }
+    static inline bool isLowSurrogate(uint ucs4) {
+        return ((ucs4 & 0xfffffc00) == 0xdc00);
+    }
+    static inline bool requiresSurrogates(uint ucs4) {
+        return (ucs4 >= 0x10000);
+    }
     static inline uint surrogateToUcs4(ushort high, ushort low) {
         return (uint(high)<<10) + low - 0x35fdc00;
     }
@@ -288,10 +301,10 @@ public:
         return (uint(high.ucs)<<10) + low.ucs - 0x35fdc00;
     }
     static inline ushort highSurrogate(uint ucs4) {
-        return (ucs4>>10) + 0xd7c0;
+        return ushort((ucs4>>10) + 0xd7c0);
     }
     static inline ushort lowSurrogate(uint ucs4) {
-        return ucs4%0x400 + 0xdc00;
+        return ushort(ucs4%0x400 + 0xdc00);
     }
 
     static Category QT_FASTCALL category(uint ucs4);
@@ -321,6 +334,8 @@ public:
     static UnicodeVersion QT_FASTCALL unicodeVersion(uint ucs4);
     static UnicodeVersion QT_FASTCALL unicodeVersion(ushort ucs2);
 
+    static UnicodeVersion QT_FASTCALL currentUnicodeVersion();
+
     static QString QT_FASTCALL decomposition(uint ucs4);
 
 #ifdef QT3_SUPPORT
@@ -346,10 +361,10 @@ private:
 #endif
     ushort ucs;
 }
-#if (defined(__arm__) || defined(__ARMEL__))
+#if (defined(__arm__) && defined(QT_NO_ARM_EABI))
     Q_PACKED
 #endif
-    ;
+;
 
 Q_DECLARE_TYPEINFO(QChar, Q_MOVABLE_TYPE);
 
@@ -362,7 +377,7 @@ inline char QChar::toLatin1() const { return ucs > 0xff ? '\0' : char(ucs); }
 #endif
 inline QChar QChar::fromLatin1(char c) { return QChar(ushort(uchar(c))); }
 
-inline QChar::QChar(uchar c, uchar r) : ucs((r << 8) | c){}
+inline QChar::QChar(uchar c, uchar r) : ucs(ushort((r << 8) | c)){}
 inline QChar::QChar(short rc) : ucs(ushort(rc)){}
 inline QChar::QChar(uint rc) : ucs(ushort(rc & 0xffff)){}
 inline QChar::QChar(int rc) : ucs(ushort(rc & 0xffff)){}
@@ -370,9 +385,9 @@ inline QChar::QChar(SpecialCharacter s) : ucs(ushort(s)) {}
 inline QChar::QChar(QLatin1Char ch) : ucs(ch.unicode()) {}
 
 inline void QChar::setCell(uchar acell)
-{ ucs = (ucs & 0xff00) + acell; }
+{ ucs = ushort((ucs & 0xff00) + acell); }
 inline void QChar::setRow(uchar arow)
-{ ucs = (ushort(arow)<<8) + (ucs&0xff); }
+{ ucs = ushort((ushort(arow)<<8) + (ucs&0xff)); }
 
 inline bool operator==(QChar c1, QChar c2) { return c1.unicode() == c2.unicode(); }
 inline bool operator!=(QChar c1, QChar c2) { return c1.unicode() != c2.unicode(); }

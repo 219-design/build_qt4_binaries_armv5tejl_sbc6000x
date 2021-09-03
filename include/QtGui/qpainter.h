@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -41,6 +45,7 @@
 #include <QtCore/qnamespace.h>
 #include <QtCore/qrect.h>
 #include <QtCore/qpoint.h>
+#include <QtCore/qscopedpointer.h>
 #include <QtGui/qpixmap.h>
 #include <QtGui/qimage.h>
 #include <QtGui/qtextoption.h>
@@ -73,6 +78,10 @@ class QPolygon;
 class QTextItem;
 class QMatrix;
 class QTransform;
+class QStaticText;
+class QGlyphRun;
+
+class QPainterPrivateDeleter;
 
 class Q_GUI_EXPORT QPainter
 {
@@ -90,6 +99,29 @@ public:
     };
 
     Q_DECLARE_FLAGS(RenderHints, RenderHint)
+
+    class PixmapFragment {
+    public:
+        qreal x;
+        qreal y;
+        qreal sourceLeft;
+        qreal sourceTop;
+        qreal width;
+        qreal height;
+        qreal scaleX;
+        qreal scaleY;
+        qreal rotation;
+        qreal opacity;
+        static PixmapFragment Q_GUI_EXPORT create(const QPointF &pos, const QRectF &sourceRect,
+                                            qreal scaleX = 1, qreal scaleY = 1,
+                                            qreal rotation = 0, qreal opacity = 1);
+    };
+
+    enum PixmapFragmentHint {
+        OpaqueHint = 0x01
+    };
+
+    Q_DECLARE_FLAGS(PixmapFragmentHints, PixmapFragmentHint)
 
     QPainter();
     explicit QPainter(QPaintDevice *);
@@ -129,7 +161,18 @@ public:
         CompositionMode_HardLight,
         CompositionMode_SoftLight,
         CompositionMode_Difference,
-        CompositionMode_Exclusion
+        CompositionMode_Exclusion,
+
+        // ROPs
+        RasterOp_SourceOrDestination,
+        RasterOp_SourceAndDestination,
+        RasterOp_SourceXorDestination,
+        RasterOp_NotSourceAndNotDestination,
+        RasterOp_NotSourceOrNotDestination,
+        RasterOp_NotSourceXorDestination,
+        RasterOp_NotSource,
+        RasterOp_NotSourceAndDestination,
+        RasterOp_SourceAndNotDestination
     };
     void setCompositionMode(CompositionMode mode);
     CompositionMode compositionMode() const;
@@ -178,6 +221,8 @@ public:
 
     void setClipping(bool enable);
     bool hasClipping() const;
+
+    QRectF clipBoundingRect() const;
 
     void save();
     void restore();
@@ -327,11 +372,16 @@ public:
                            int sx, int sy, int sw, int sh);
     inline void drawPixmap(const QPointF &p, const QPixmap &pm, const QRectF &sr);
     inline void drawPixmap(const QPoint &p, const QPixmap &pm, const QRect &sr);
-    inline void drawPixmap(const QPointF &p, const QPixmap &pm);
+    void drawPixmap(const QPointF &p, const QPixmap &pm);
     inline void drawPixmap(const QPoint &p, const QPixmap &pm);
     inline void drawPixmap(int x, int y, const QPixmap &pm);
     inline void drawPixmap(const QRect &r, const QPixmap &pm);
     inline void drawPixmap(int x, int y, int w, int h, const QPixmap &pm);
+
+    void drawPixmapFragments(const PixmapFragment *fragments, int fragmentCount,
+                             const QPixmap &pixmap, PixmapFragmentHints hints = 0);
+    void drawPixmapFragments(const QRectF *targetRects, const QRectF *sourceRects, int fragmentCount,
+                             const QPixmap &pixmap, PixmapFragmentHints hints = 0);
 
     void drawImage(const QRectF &targetRect, const QImage &image, const QRectF &sourceRect,
                    Qt::ImageConversionFlags flags = Qt::AutoColor);
@@ -343,13 +393,21 @@ public:
                           Qt::ImageConversionFlags flags = Qt::AutoColor);
     inline void drawImage(const QRectF &r, const QImage &image);
     inline void drawImage(const QRect &r, const QImage &image);
-    inline void drawImage(const QPointF &p, const QImage &image);
+    void drawImage(const QPointF &p, const QImage &image);
     inline void drawImage(const QPoint &p, const QImage &image);
     inline void drawImage(int x, int y, const QImage &image, int sx = 0, int sy = 0,
                           int sw = -1, int sh = -1, Qt::ImageConversionFlags flags = Qt::AutoColor);
 
     void setLayoutDirection(Qt::LayoutDirection direction);
     Qt::LayoutDirection layoutDirection() const;
+
+#if !defined(QT_NO_RAWFONT)
+    void drawGlyphRun(const QPointF &position, const QGlyphRun &glyphRun);
+#endif
+
+    void drawStaticText(const QPointF &topLeftPosition, const QStaticText &staticText);
+    inline void drawStaticText(const QPoint &topLeftPosition, const QStaticText &staticText);
+    inline void drawStaticText(int left, int top, const QStaticText &staticText);
 
     void drawText(const QPointF &p, const QString &s);
     inline void drawText(const QPoint &p, const QString &s);
@@ -377,6 +435,18 @@ public:
     inline void fillRect(int x, int y, int w, int h, const QBrush &);
     void fillRect(const QRect &, const QBrush &);
 
+    void fillRect(const QRectF &, const QColor &color);
+    inline void fillRect(int x, int y, int w, int h, const QColor &color);
+    void fillRect(const QRect &, const QColor &color);
+
+    inline void fillRect(int x, int y, int w, int h, Qt::GlobalColor c);
+    inline void fillRect(const QRect &r, Qt::GlobalColor c);
+    inline void fillRect(const QRectF &r, Qt::GlobalColor c);
+
+    inline void fillRect(int x, int y, int w, int h, Qt::BrushStyle style);
+    inline void fillRect(const QRect &r, Qt::BrushStyle style);
+    inline void fillRect(const QRectF &r, Qt::BrushStyle style);
+
     void eraseRect(const QRectF &);
     inline void eraseRect(int x, int y, int w, int h);
     inline void eraseRect(const QRect &);
@@ -392,6 +462,9 @@ public:
                               const QPoint& offset = QPoint());
     static QPaintDevice *redirected(const QPaintDevice *device, QPoint *offset = 0);
     static void restoreRedirected(const QPaintDevice *device);
+
+    void beginNativePainting();
+    void endNativePainting();
 
 #ifdef QT3_SUPPORT
 
@@ -470,7 +543,7 @@ private:
     Q_DISABLE_COPY(QPainter)
     friend class Q3Painter;
 
-    QPainterPrivate *d_ptr;
+    QScopedPointer<QPainterPrivate> d_ptr;
 
     friend class QFontEngine;
     friend class QFontEngineBox;
@@ -480,6 +553,9 @@ private:
     friend class QFontEngineXLFD;
     friend class QWSManager;
     friend class QPaintEngine;
+    friend class QPaintEngineExPrivate;
+    friend class QOpenGLPaintEngine;
+    friend class QVGPaintEngine;
     friend class QX11PaintEngine;
     friend class QX11PaintEnginePrivate;
     friend class QWin32PaintEngine;
@@ -710,6 +786,42 @@ inline void QPainter::fillRect(int x, int y, int w, int h, const QBrush &b)
     fillRect(QRect(x, y, w, h), b);
 }
 
+inline void QPainter::fillRect(int x, int y, int w, int h, const QColor &b)
+{
+    fillRect(QRect(x, y, w, h), b);
+}
+
+inline void QPainter::fillRect(int x, int y, int w, int h, Qt::GlobalColor c)
+{
+    fillRect(QRect(x, y, w, h), QColor(c));
+}
+
+inline void QPainter::fillRect(const QRect &r, Qt::GlobalColor c)
+{
+    fillRect(r, QColor(c));
+}
+
+inline void QPainter::fillRect(const QRectF &r, Qt::GlobalColor c)
+{
+    fillRect(r, QColor(c));
+}
+
+inline void QPainter::fillRect(int x, int y, int w, int h, Qt::BrushStyle style)
+{
+    fillRect(QRectF(x, y, w, h), QBrush(style));
+}
+
+inline void QPainter::fillRect(const QRect &r, Qt::BrushStyle style)
+{
+    fillRect(QRectF(r), QBrush(style));
+}
+
+inline void QPainter::fillRect(const QRectF &r, Qt::BrushStyle style)
+{
+    fillRect(r, QBrush(style));
+}
+
+
 inline void QPainter::setBrushOrigin(int x, int y)
 {
     setBrushOrigin(QPoint(x, y));
@@ -735,14 +847,9 @@ inline void QPainter::drawPixmap(const QRect &targetRect, const QPixmap &pixmap,
     drawPixmap(QRectF(targetRect), pixmap, QRectF(sourceRect));
 }
 
-inline void QPainter::drawPixmap(const QPointF &p, const QPixmap &pm)
-{
-    drawPixmap(QRectF(p.x(), p.y(), -1, -1), pm, QRectF());
-}
-
 inline void QPainter::drawPixmap(const QPoint &p, const QPixmap &pm)
 {
-    drawPixmap(QRectF(p.x(), p.y(), -1, -1), pm, QRectF());
+    drawPixmap(QPointF(p), pm);
 }
 
 inline void QPainter::drawPixmap(const QRect &r, const QPixmap &pm)
@@ -752,7 +859,7 @@ inline void QPainter::drawPixmap(const QRect &r, const QPixmap &pm)
 
 inline void QPainter::drawPixmap(int x, int y, const QPixmap &pm)
 {
-    drawPixmap(QRectF(x, y, -1, -1), pm, QRectF());
+    drawPixmap(QPointF(x, y), pm);
 }
 
 inline void QPainter::drawPixmap(int x, int y, int w, int h, const QPixmap &pm)
@@ -816,20 +923,28 @@ inline void QPainter::drawImage(const QRect &r, const QImage &image)
     drawImage(r, image, QRectF(0, 0, image.width(), image.height()));
 }
 
-inline void QPainter::drawImage(const QPointF &p, const QImage &image)
-{
-    drawImage(QRectF(p.x(), p.y(), -1, -1), image, QRectF(0, 0, image.width(), image.height()));
-}
-
 inline void QPainter::drawImage(const QPoint &p, const QImage &image)
 {
-    drawImage(QRectF(p.x(), p.y(), -1, -1), image, QRectF(0, 0, image.width(), image.height()));
+    drawImage(QPointF(p), image);
 }
 
 inline void QPainter::drawImage(int x, int y, const QImage &image, int sx, int sy, int sw, int sh,
                                 Qt::ImageConversionFlags flags)
 {
-    drawImage(QRectF(x, y, -1, -1), image, QRectF(sx, sy, sw, sh), flags);
+    if (sx == 0 && sy == 0 && sw == -1 && sh == -1 && flags == Qt::AutoColor)
+        drawImage(QPointF(x, y), image);
+    else
+        drawImage(QRectF(x, y, -1, -1), image, QRectF(sx, sy, sw, sh), flags);
+}
+
+inline void QPainter::drawStaticText(const QPoint &p, const QStaticText &staticText)
+{
+    drawStaticText(QPointF(p), staticText);
+}
+
+inline void QPainter::drawStaticText(int x, int y, const QStaticText &staticText)
+{
+    drawStaticText(QPointF(x, y), staticText);
 }
 
 inline void QPainter::drawTextItem(const QPoint &p, const QTextItem &ti)

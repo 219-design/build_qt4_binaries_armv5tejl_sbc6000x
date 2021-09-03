@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -101,7 +105,7 @@ Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::isFetchAndAddWaitFree()
 
 inline bool QBasicAtomicInt::ref()
 {
-    register int old, tmp;
+    int old, tmp;
     asm volatile("1:\n"
                  "ldl_l %0,%2\n"   /* old=*ptr;                               */
                  "addl  %0,1,%1\n" /* tmp=old+1;                              */
@@ -118,7 +122,7 @@ inline bool QBasicAtomicInt::ref()
 
 inline bool QBasicAtomicInt::deref()
 {
-    register int old, tmp;
+    int old, tmp;
     asm volatile("1:\n"
                  "ldl_l %0,%2\n"   /* old=*ptr;                               */
                  "subl  %0,1,%1\n" /* tmp=old-1;                              */
@@ -135,7 +139,7 @@ inline bool QBasicAtomicInt::deref()
 
 inline bool QBasicAtomicInt::testAndSetRelaxed(int expectedValue, int newValue)
 {
-    register int ret;
+    int ret;
     asm volatile("1:\n"
                  "ldl_l %0,%1\n"   /* ret=*ptr;                               */
                  "cmpeq %0,%2,%0\n"/* if (ret==expected) ret=0; else ret=1;   */
@@ -154,7 +158,7 @@ inline bool QBasicAtomicInt::testAndSetRelaxed(int expectedValue, int newValue)
 
 inline bool QBasicAtomicInt::testAndSetAcquire(int expectedValue, int newValue)
 {
-    register int ret;
+    int ret;
     asm volatile("1:\n"
                  "ldl_l %0,%1\n"   /* ret=*ptr;                               */
                  "cmpeq %0,%2,%0\n"/* if (ret==expected) ret=0; else ret=1;   */
@@ -174,7 +178,7 @@ inline bool QBasicAtomicInt::testAndSetAcquire(int expectedValue, int newValue)
 
 inline bool QBasicAtomicInt::testAndSetRelease(int expectedValue, int newValue)
 {
-    register int ret;
+    int ret;
     asm volatile("mb\n"
                  "1:\n"
                  "ldl_l %0,%1\n"   /* ret=*ptr;                               */
@@ -194,7 +198,7 @@ inline bool QBasicAtomicInt::testAndSetRelease(int expectedValue, int newValue)
 
 inline int QBasicAtomicInt::fetchAndStoreRelaxed(int newValue)
 {
-    register int old, tmp;
+    int old, tmp;
     asm volatile("1:\n"
                  "ldl_l %0,%2\n"   /* old=*ptr;                               */
                  "mov   %3,%1\n"   /* tmp=newval;                             */
@@ -211,7 +215,7 @@ inline int QBasicAtomicInt::fetchAndStoreRelaxed(int newValue)
 
 inline int QBasicAtomicInt::fetchAndStoreAcquire(int newValue)
 {
-    register int old, tmp;
+    int old, tmp;
     asm volatile("1:\n"
                  "ldl_l %0,%2\n"   /* old=*ptr;                               */
                  "mov   %3,%1\n"   /* tmp=newval;                             */
@@ -229,7 +233,7 @@ inline int QBasicAtomicInt::fetchAndStoreAcquire(int newValue)
 
 inline int QBasicAtomicInt::fetchAndStoreRelease(int newValue)
 {
-    register int old, tmp;
+    int old, tmp;
     asm volatile("mb\n"
                  "1:\n"
                  "ldl_l %0,%2\n"   /* old=*ptr;                               */
@@ -247,7 +251,7 @@ inline int QBasicAtomicInt::fetchAndStoreRelease(int newValue)
 
 inline int QBasicAtomicInt::fetchAndAddRelaxed(int valueToAdd)
 {
-    register int old, tmp;
+    int old, tmp;
     asm volatile("1:\n"
                  "ldl_l %0,%2\n"   /* old=*ptr;                               */
                  "addl  %0,%3,%1\n"/* tmp=old+value;                          */
@@ -264,7 +268,7 @@ inline int QBasicAtomicInt::fetchAndAddRelaxed(int valueToAdd)
 
 inline int QBasicAtomicInt::fetchAndAddAcquire(int valueToAdd)
 {
-    register int old, tmp;
+    int old, tmp;
     asm volatile("1:\n"
                  "ldl_l %0,%2\n"   /* old=*ptr;                               */
                  "addl  %0,%3,%1\n"/* tmp=old+value;                          */
@@ -282,7 +286,7 @@ inline int QBasicAtomicInt::fetchAndAddAcquire(int valueToAdd)
 
 inline int QBasicAtomicInt::fetchAndAddRelease(int valueToAdd)
 {
-    register int old, tmp;
+    int old, tmp;
     asm volatile("mb\n"
                  "1:\n"
                  "ldl_l %0,%2\n"   /* old=*ptr;                               */
@@ -301,7 +305,7 @@ inline int QBasicAtomicInt::fetchAndAddRelease(int valueToAdd)
 template <typename T>
 Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetRelaxed(T *expectedValue, T *newValue)
 {
-    register void *ret;
+    void *ret;
     asm volatile("1:\n"
                  "ldq_l %0,%1\n"   /* ret=*ptr;                               */
                  "cmpeq %0,%2,%0\n"/* if (ret==expected) tmp=0; else tmp=1;   */
@@ -321,7 +325,7 @@ Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetRelaxed(T *expectedValu
 template <typename T>
 Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetAcquire(T *expectedValue, T *newValue)
 {
-    register void *ret;
+    void *ret;
     asm volatile("1:\n"
                  "ldq_l %0,%1\n"   /* ret=*ptr;                               */
                  "cmpeq %0,%2,%0\n"/* if (ret==expected) tmp=0; else tmp=1;   */
@@ -342,7 +346,7 @@ Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetAcquire(T *expectedValu
 template <typename T>
 Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetRelease(T *expectedValue, T *newValue)
 {
-    register void *ret;
+    void *ret;
     asm volatile("mb\n"
                  "1:\n"
                  "ldq_l %0,%1\n"   /* ret=*ptr;                               */
@@ -363,7 +367,7 @@ Q_INLINE_TEMPLATE bool QBasicAtomicPointer<T>::testAndSetRelease(T *expectedValu
 template <typename T>
 Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreRelaxed(T *newValue)
 {
-    register void *old, *tmp;
+    T *old, *tmp;
     asm volatile("1:\n"
                  "ldq_l %0,%2\n"   /* old=*ptr;                               */
                  "mov   %3,%1\n"   /* tmp=newval;                             */
@@ -381,7 +385,7 @@ Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreRelaxed(T *newValue)
 template <typename T>
 Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreAcquire(T *newValue)
 {
-    register void *old, *tmp;
+    T *old, *tmp;
     asm volatile("1:\n"
                  "ldq_l %0,%2\n"   /* old=*ptr;                               */
                  "mov   %3,%1\n"   /* tmp=newval;                             */
@@ -400,7 +404,7 @@ Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreAcquire(T *newValue)
 template <typename T>
 Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreRelease(T *newValue)
 {
-    register void *old, *tmp;
+    T *old, *tmp;
     asm volatile("mb\n"
                  "1:\n"
                  "ldq_l %0,%2\n"   /* old=*ptr;                               */
@@ -419,7 +423,7 @@ Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndStoreRelease(T *newValue)
 template <typename T>
 Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndAddRelaxed(qptrdiff valueToAdd)
 {
-    register void *old, *tmp;
+    T *old, *tmp;
     asm volatile("1:\n"
                  "ldq_l %0,%2\n"   /* old=*ptr;                               */
                  "addq  %0,%3,%1\n"/* tmp=old+value;                          */
@@ -437,7 +441,7 @@ Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndAddRelaxed(qptrdiff valueTo
 template <typename T>
 Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndAddAcquire(qptrdiff valueToAdd)
 {
-    register void *old, *tmp;
+    T *old, *tmp;
     asm volatile("1:\n"
                  "ldq_l %0,%2\n"   /* old=*ptr;                               */
                  "addq  %0,%3,%1\n"/* tmp=old+value;                          */
@@ -456,7 +460,7 @@ Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndAddAcquire(qptrdiff valueTo
 template <typename T>
 Q_INLINE_TEMPLATE T *QBasicAtomicPointer<T>::fetchAndAddRelease(qptrdiff valueToAdd)
 {
-    register void *old, *tmp;
+    T *old, *tmp;
     asm volatile("mb\n"
                  "1:\n"
                  "ldq_l %0,%2\n"   /* old=*ptr;                               */

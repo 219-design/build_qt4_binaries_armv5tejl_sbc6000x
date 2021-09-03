@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -79,6 +83,42 @@ public:
 
         MenuCommand          = 0x0018,
 
+        // Values from IAccessible2
+        ActionChanged                    = 0x0101,
+        ActiveDescendantChanged          = 0x0102,
+        AttributeChanged                 = 0x0103,
+        DocumentContentChanged           = 0x0104,
+        DocumentLoadComplete             = 0x0105,
+        DocumentLoadStopped              = 0x0106,
+        DocumentReload                   = 0x0107,
+        HyperlinkEndIndexChanged         = 0x0108,
+        HyperlinkNumberOfAnchorsChanged  = 0x0109,
+        HyperlinkSelectedLinkChanged     = 0x010A,
+        HypertextLinkActivated           = 0x010B,
+        HypertextLinkSelected            = 0x010C,
+        HyperlinkStartIndexChanged       = 0x010D,
+        HypertextChanged                 = 0x010E,
+        HypertextNLinksChanged           = 0x010F,
+        ObjectAttributeChanged           = 0x0110,
+        PageChanged                      = 0x0111,
+        SectionChanged                   = 0x0112,
+        TableCaptionChanged              = 0x0113,
+        TableColumnDescriptionChanged    = 0x0114,
+        TableColumnHeaderChanged         = 0x0115,
+        TableModelChanged                = 0x0116,
+        TableRowDescriptionChanged       = 0x0117,
+        TableRowHeaderChanged            = 0x0118,
+        TableSummaryChanged              = 0x0119,
+        TextAttributeChanged             = 0x011A,
+        TextCaretMoved                   = 0x011B,
+        // TextChanged = 0x011C, is deprecated in IA2, use TextUpdated
+        TextColumnChanged                = 0x011D,
+        TextInserted                     = 0x011E,
+        TextRemoved                      = 0x011F,
+        TextUpdated                      = 0x0120,
+        TextSelectionChanged             = 0x0121,
+        VisibleDataChanged               = 0x0122,
+
         ObjectCreated        = 0x8000,
         ObjectDestroyed      = 0x8001,
         ObjectShow           = 0x8002,
@@ -111,6 +151,7 @@ public:
         ReadOnly        = 0x00000040,
         HotTracked      = 0x00000080,
         DefaultButton   = 0x00000100,
+        // #### Qt5 Expandable
         Expanded        = 0x00000200,
         Collapsed       = 0x00000400,
         Busy            = 0x00000800,
@@ -138,6 +179,8 @@ public:
         HasPopup        = 0x40000000,
         Modal           = 0x80000000,
 
+        // #### Qt5 ManagesDescendants
+        // #### Qt5 remove HasInvokeExtension
         HasInvokeExtension = 0x10000000 // internal
     };
     Q_DECLARE_FLAGS(State, StateFlag)
@@ -206,7 +249,10 @@ public:
         PageTabList    = 0x0000003C,
         Clock          = 0x0000003D,
         Splitter       = 0x0000003E,
+        // Additional Qt roles where enum value does not map directly to MSAA:
         LayeredPane    = 0x0000003F,
+        Terminal       = 0x00000040,
+        Desktop        = 0x00000041,
         UserRole       = 0x0000ffff
     };
 
@@ -305,7 +351,10 @@ namespace QAccessible2
         TextInterface,
         EditableTextInterface,
         ValueInterface,
-        TableInterface
+        TableInterface,
+        ActionInterface,
+        ImageInterface,
+        Table2Interface
     };
 }
 
@@ -314,6 +363,9 @@ class QAccessibleTextInterface;
 class QAccessibleEditableTextInterface;
 class QAccessibleValueInterface;
 class QAccessibleTableInterface;
+class QAccessibleActionInterface;
+class QAccessibleImageInterface;
+class QAccessibleTable2Interface;
 
 class Q_GUI_EXPORT QAccessibleInterface : public QAccessible
 {
@@ -370,6 +422,15 @@ public:
 
     inline QAccessibleTableInterface *tableInterface()
     { return reinterpret_cast<QAccessibleTableInterface *>(cast_helper(QAccessible2::TableInterface)); }
+
+    inline QAccessibleActionInterface *actionInterface()
+    { return reinterpret_cast<QAccessibleActionInterface *>(cast_helper(QAccessible2::ActionInterface)); }
+
+    inline QAccessibleImageInterface *imageInterface()
+    { return reinterpret_cast<QAccessibleImageInterface *>(cast_helper(QAccessible2::ImageInterface)); }
+
+    inline QAccessibleTable2Interface *table2Interface()
+    { return reinterpret_cast<QAccessibleTable2Interface *>(cast_helper(QAccessible2::Table2Interface)); }
 
 private:
     QAccessible2Interface *cast_helper(QAccessible2::InterfaceType);

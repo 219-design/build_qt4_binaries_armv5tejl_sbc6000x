@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -63,7 +67,7 @@ Q_GUI_EXPORT QDataStream &operator>>(QDataStream &, QColor &);
 class Q_GUI_EXPORT QColor
 {
 public:
-    enum Spec { Invalid, Rgb, Hsv, Cmyk };
+    enum Spec { Invalid, Rgb, Hsv, Cmyk, Hsl };
 
     QColor();
     QColor(Qt::GlobalColor color);
@@ -118,10 +122,14 @@ public:
 
     int hue() const; // 0 <= hue < 360
     int saturation() const;
+    int hsvHue() const; // 0 <= hue < 360
+    int hsvSaturation() const;
     int value() const;
 
     qreal hueF() const; // 0.0 <= hueF < 360.0
     qreal saturationF() const;
+    qreal hsvHueF() const; // 0.0 <= hueF < 360.0
+    qreal hsvSaturationF() const;
     qreal valueF() const;
 
     void getHsv(int *h, int *s, int *v, int *a = 0) const;
@@ -146,9 +154,24 @@ public:
     void getCmykF(qreal *c, qreal *m, qreal *y, qreal *k, qreal *a = 0);
     void setCmykF(qreal c, qreal m, qreal y, qreal k, qreal a = 1.0);
 
+    int hslHue() const; // 0 <= hue < 360
+    int hslSaturation() const;
+    int lightness() const;
+
+    qreal hslHueF() const; // 0.0 <= hueF < 360.0
+    qreal hslSaturationF() const;
+    qreal lightnessF() const;
+
+    void getHsl(int *h, int *s, int *l, int *a = 0) const;
+    void setHsl(int h, int s, int l, int a = 255);
+
+    void getHslF(qreal *h, qreal *s, qreal *l, qreal *a = 0) const;
+    void setHslF(qreal h, qreal s, qreal l, qreal a = 1.0);
+
     QColor toRgb() const;
     QColor toHsv() const;
     QColor toCmyk() const;
+    QColor toHsl() const;
 
     QColor convertTo(Spec colorSpec) const;
 
@@ -163,6 +186,9 @@ public:
 
     static QColor fromCmyk(int c, int m, int y, int k, int a = 255);
     static QColor fromCmykF(qreal c, qreal m, qreal y, qreal k, qreal a = 1.0);
+
+    static QColor fromHsl(int h, int s, int l, int a = 255);
+    static QColor fromHslF(qreal h, qreal s, qreal l, qreal a = 1.0);
 
     QColor light(int f = 150) const;
     QColor lighter(int f = 150) const;
@@ -199,6 +225,8 @@ public:
     QT3_SUPPORT uint pixel(int screen = -1) const;
 #endif
 
+    static bool isValidColor(const QString &name);
+
 private:
 #ifndef QT3_SUPPORT
     // do not allow a spec to be used as an alpha value
@@ -206,6 +234,7 @@ private:
 #endif
 
     void invalidate();
+    bool setColorFromString(const QString &name);
 
     Spec cspec;
     union {
@@ -230,6 +259,14 @@ private:
             ushort yellow;
             ushort black;
         } acmyk;
+        struct {
+            ushort alpha;
+            ushort hue;
+            ushort saturation;
+            ushort lightness;
+            ushort pad;
+        } ahsl;
+        ushort array[5];
     } ct;
 
     friend class QColormap;

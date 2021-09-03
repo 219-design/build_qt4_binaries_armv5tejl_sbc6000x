@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -40,6 +44,7 @@
 
 #include <QtGui/qwindowdefs.h>
 #include <QtCore/qstring.h>
+#include <QtCore/qsharedpointer.h>
 
 #if defined(Q_WS_X11) || defined(Q_WS_QWS)
 typedef struct FT_FaceRec_* FT_Face;
@@ -67,21 +72,32 @@ public:
         Courier,    TypeWriter = Courier,
         OldEnglish, Decorative = OldEnglish,
         System,
-        AnyStyle
+        AnyStyle,
+        Cursive,
+        Monospace,
+        Fantasy
     };
 
     enum StyleStrategy {
-        PreferDefault    = 0x0001,
-        PreferBitmap     = 0x0002,
-        PreferDevice     = 0x0004,
-        PreferOutline    = 0x0008,
-        ForceOutline     = 0x0010,
-        PreferMatch      = 0x0020,
-        PreferQuality    = 0x0040,
-        PreferAntialias  = 0x0080,
-        NoAntialias      = 0x0100,
-        OpenGLCompatible = 0x0200,
-        NoFontMerging    = 0x8000
+        PreferDefault       = 0x0001,
+        PreferBitmap        = 0x0002,
+        PreferDevice        = 0x0004,
+        PreferOutline       = 0x0008,
+        ForceOutline        = 0x0010,
+        PreferMatch         = 0x0020,
+        PreferQuality       = 0x0040,
+        PreferAntialias     = 0x0080,
+        NoAntialias         = 0x0100,
+        OpenGLCompatible    = 0x0200,
+        ForceIntegerMetrics = 0x0400,
+        NoFontMerging       = 0x8000
+    };
+
+    enum HintingPreference {
+        PreferDefaultHinting        = 0,
+        PreferNoHinting             = 1,
+        PreferVerticalHinting       = 2,
+        PreferFullHinting           = 3
     };
 
     enum Weight {
@@ -124,22 +140,24 @@ public:
     };
 
     enum ResolveProperties {
-        FamilyResolved         = 0x0001,
-        SizeResolved           = 0x0002,
-        StyleHintResolved      = 0x0004,
-        StyleStrategyResolved  = 0x0008,
-        WeightResolved         = 0x0010,
-        StyleResolved          = 0x0020,
-        UnderlineResolved      = 0x0040,
-        OverlineResolved       = 0x0080,
-        StrikeOutResolved      = 0x0100,
-        FixedPitchResolved     = 0x0200,
-        StretchResolved        = 0x0400,
-        KerningResolved        = 0x0800,
-        CapitalizationResolved = 0x1000,
-        LetterSpacingResolved  = 0x2000,
-        WordSpacingResolved    = 0x4000,
-        AllPropertiesResolved  = 0x7fff
+        FamilyResolved              = 0x0001,
+        SizeResolved                = 0x0002,
+        StyleHintResolved           = 0x0004,
+        StyleStrategyResolved       = 0x0008,
+        WeightResolved              = 0x0010,
+        StyleResolved               = 0x0020,
+        UnderlineResolved           = 0x0040,
+        OverlineResolved            = 0x0080,
+        StrikeOutResolved           = 0x0100,
+        FixedPitchResolved          = 0x0200,
+        StretchResolved             = 0x0400,
+        KerningResolved             = 0x0800,
+        CapitalizationResolved      = 0x1000,
+        LetterSpacingResolved       = 0x2000,
+        WordSpacingResolved         = 0x4000,
+        HintingPreferenceResolved   = 0x8000,
+        StyleNameResolved           = 0x10000,
+        AllPropertiesResolved       = 0x1ffff
     };
 
     QFont();
@@ -150,6 +168,9 @@ public:
 
     QString family() const;
     void setFamily(const QString &);
+
+    QString styleName() const;
+    void setStyleName(const QString &);
 
     int pointSize() const;
     void setPointSize(int);
@@ -204,6 +225,9 @@ public:
     void setCapitalization(Capitalization);
     Capitalization capitalization() const;
 
+    void setHintingPreference(HintingPreference hintingPreference);
+    HintingPreference hintingPreference() const;
+
     // is raw mode still needed?
     bool rawMode() const;
     void setRawMode(bool);
@@ -217,7 +241,10 @@ public:
     bool operator<(const QFont &) const;
     operator QVariant() const;
     bool isCopyOf(const QFont &) const;
-
+#ifdef Q_COMPILER_RVALUE_REFS
+    inline QFont &operator=(QFont &&other)
+    { qSwap(d, other.d); qSwap(resolve_mask, other.resolve_mask);  return *this; }
+#endif
 
 #ifdef Q_WS_WIN
     HFONT handle() const;
@@ -281,10 +308,12 @@ private:
 #endif
 
     friend class QFontPrivate;
+    friend class QFontDialogPrivate;
     friend class QFontMetrics;
     friend class QFontMetricsF;
     friend class QFontInfo;
     friend class QPainter;
+    friend class QPainterPrivate;
     friend class QPSPrintEngineFont;
     friend class QApplication;
     friend class QWidget;
@@ -301,13 +330,17 @@ private:
     friend class QPainterPath;
     friend class QTextItemInt;
     friend class QPicturePaintEngine;
+    friend class QPainterReplayer;
+    friend class QPaintBufferEngine;
+    friend class QCommandLinkButtonPrivate;
+    friend class QFontEngine;
 
 #ifndef QT_NO_DATASTREAM
     friend Q_GUI_EXPORT QDataStream &operator<<(QDataStream &, const QFont &);
     friend Q_GUI_EXPORT QDataStream &operator>>(QDataStream &, QFont &);
 #endif
 
-    QFontPrivate *d;
+    QExplicitlySharedDataPointer<QFontPrivate> d;
     uint resolve_mask;
 };
 

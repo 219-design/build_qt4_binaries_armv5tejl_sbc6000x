@@ -1,3 +1,5 @@
+#ifndef QT_QTSQL_MODULE_H
+#define QT_QTSQL_MODULE_H
 #include <QtCore/QtCore>
 #include "qsql.h"
 #include "qsqldatabase.h"
@@ -13,3 +15,4 @@
 #include "qsqlrelationaldelegate.h"
 #include "qsqlrelationaltablemodel.h"
 #include "qsqltablemodel.h"
+#endif

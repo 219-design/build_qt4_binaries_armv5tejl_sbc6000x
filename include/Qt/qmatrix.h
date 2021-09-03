@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -57,6 +61,7 @@ class QVariant;
 class Q_GUI_EXPORT QMatrix // 2D transform matrix
 {
 public:
+    inline explicit QMatrix(Qt::Initialization) {}
     QMatrix();
     QMatrix(qreal m11, qreal m12, qreal m21, qreal m22,
             qreal dx, qreal dy);
@@ -95,8 +100,11 @@ public:
     QMatrix &shear(qreal sh, qreal sv);
     QMatrix &rotate(qreal a);
 
-    bool isInvertible() const { return !qFuzzyCompare(_m11*_m22 - _m12*_m21 + 1, 1); }
-    qreal det() const { return _m11*_m22 - _m12*_m21; }
+    bool isInvertible() const { return !qFuzzyIsNull(_m11*_m22 - _m12*_m21); }
+    qreal determinant() const { return _m11*_m22 - _m12*_m21; }
+#ifdef QT_DEPRECATED
+    QT_DEPRECATED qreal det() const { return _m11*_m22 - _m12*_m21; }
+#endif
 
     QMatrix inverted(bool *invertible = 0) const;
 
@@ -117,6 +125,20 @@ public:
 #endif
 
 private:
+    inline QMatrix(bool)
+            : _m11(1.)
+            , _m12(0.)
+            , _m21(0.)
+            , _m22(1.)
+            , _dx(0.)
+            , _dy(0.) {}
+    inline QMatrix(qreal am11, qreal am12, qreal am21, qreal am22, qreal adx, qreal ady, bool)
+            : _m11(am11)
+            , _m12(am12)
+            , _m21(am21)
+            , _m22(am22)
+            , _dx(adx)
+            , _dy(ady) {}
     friend class QTransform;
     qreal _m11, _m12;
     qreal _m21, _m22;
@@ -143,16 +165,29 @@ Q_GUI_EXPORT QPainterPath operator *(const QPainterPath &p, const QMatrix &m);
 
 inline bool QMatrix::isIdentity() const
 {
-    return qFuzzyCompare(_m11, 1) && qFuzzyCompare(_m22, 1) && qFuzzyCompare(_m12 + 1, 1)
-           && qFuzzyCompare(_m21 + 1, 1) && qFuzzyCompare(_dx + 1, 1) && qFuzzyCompare(_dy + 1, 1);
+    return qFuzzyIsNull(_m11 - 1) && qFuzzyIsNull(_m22 - 1) && qFuzzyIsNull(_m12)
+           && qFuzzyIsNull(_m21) && qFuzzyIsNull(_dx) && qFuzzyIsNull(_dy);
 }
+
+inline bool qFuzzyCompare(const QMatrix& m1, const QMatrix& m2)
+{
+    return qFuzzyCompare(m1.m11(), m2.m11())
+        && qFuzzyCompare(m1.m12(), m2.m12())
+        && qFuzzyCompare(m1.m21(), m2.m21())
+        && qFuzzyCompare(m1.m22(), m2.m22())
+        && qFuzzyCompare(m1.dx(), m2.dx())
+        && qFuzzyCompare(m1.dy(), m2.dy());
+}
+
 
 /*****************************************************************************
  QMatrix stream functions
  *****************************************************************************/
 
+#ifndef QT_NO_DATASTREAM
 Q_GUI_EXPORT QDataStream &operator<<(QDataStream &, const QMatrix &);
 Q_GUI_EXPORT QDataStream &operator>>(QDataStream &, QMatrix &);
+#endif
 
 #ifndef QT_NO_DEBUG_STREAM
 Q_GUI_EXPORT QDebug operator<<(QDebug, const QMatrix &);

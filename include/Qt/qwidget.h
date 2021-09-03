@@ -1,45 +1,51 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
 #ifndef QWIDGET_H
 #define QWIDGET_H
 
+#include <QtCore/qconfig.h>
 #include <QtGui/qwindowdefs.h>
 #include <QtCore/qobject.h>
+#include <QtCore/qmargins.h>
 #include <QtGui/qpaintdevice.h>
 #include <QtGui/qpalette.h>
 #include <QtGui/qfont.h>
@@ -50,6 +56,10 @@
 #include <QtGui/qbrush.h>
 #include <QtGui/qcursor.h>
 #include <QtGui/qkeysequence.h>
+
+#ifdef Q_WS_QPA //should this go somewhere else?
+#include <QtGui/qplatformwindowformat_qpa.h>
+#endif
 
 #ifdef QT_INCLUDE_COMPAT
 #include <QtGui/qevent.h>
@@ -86,10 +96,17 @@ class QDragLeaveEvent;
 class QDropEvent;
 class QShowEvent;
 class QHideEvent;
+#ifndef QT_NO_IM
 class QInputContext;
+#endif
 class QIcon;
 class QWindowSurface;
+class QPlatformWindow;
 class QLocale;
+class QGraphicsProxyWidget;
+class QGraphicsEffect;
+class QRasterWindowSurface;
+class QUnifiedToolbarSurface;
 #if defined(Q_WS_X11)
 class QX11Info;
 #endif
@@ -124,9 +141,6 @@ public:
 
     int alloc_region_index;
 //    int alloc_region_revision;
-#endif
-#if defined(Q_OS_WINCE)
-    uint window_state_internal : 4;
 #endif
     QRect wrect;
 };
@@ -207,6 +221,7 @@ class Q_GUI_EXPORT QWidget : public QObject, public QPaintDevice
 #endif
     Q_PROPERTY(QLocale locale READ locale WRITE setLocale RESET unsetLocale)
     Q_PROPERTY(QString windowFilePath READ windowFilePath WRITE setWindowFilePath DESIGNABLE isWindow)
+    Q_PROPERTY(Qt::InputMethodHints inputMethodHints READ inputMethodHints WRITE setInputMethodHints)
 
 public:
     enum RenderFlag {
@@ -283,6 +298,10 @@ public:
     void setMaximumWidth(int maxw);
     void setMaximumHeight(int maxh);
 
+#ifdef Q_QDOC
+    void setupUi(QWidget *widget);
+#endif
+
     QSize sizeIncrement() const;
     void setSizeIncrement(const QSize &);
     void setSizeIncrement(int w, int h);
@@ -345,6 +364,16 @@ public:
     void render(QPainter *painter, const QPoint &targetOffset = QPoint(),
                 const QRegion &sourceRegion = QRegion(),
                 RenderFlags renderFlags = RenderFlags(DrawWindowBackground | DrawChildren));
+
+#ifndef QT_NO_GRAPHICSEFFECT
+    QGraphicsEffect *graphicsEffect() const;
+    void setGraphicsEffect(QGraphicsEffect *effect);
+#endif //QT_NO_GRAPHICSEFFECT
+
+#ifndef QT_NO_GESTURES
+    void grabGesture(Qt::GestureType type, Qt::GestureFlags flags = Qt::GestureFlags());
+    void ungrabGesture(Qt::GestureType type);
+#endif
 
 public Q_SLOTS:
     void setWindowTitle(const QString &);
@@ -442,6 +471,10 @@ public:
     void repaintUnclipped(const QRegion &, bool erase = true);
 #endif
 
+#ifndef QT_NO_GRAPHICSVIEW
+    QGraphicsProxyWidget *graphicsProxyWidget() const;
+#endif
+
 public Q_SLOTS:
     void update();
     void repaint();
@@ -460,7 +493,7 @@ public Q_SLOTS:
 
     virtual void setVisible(bool visible);
     inline void setHidden(bool hidden) { setVisible(!hidden); }
-#ifndef Q_OS_WINCE
+#ifndef Q_WS_WINCE
     inline void show() { setVisible(true); }
 #else
     void show();
@@ -512,7 +545,10 @@ public:
     QRegion visibleRegion() const;
 
     void setContentsMargins(int left, int top, int right, int bottom);
+    void setContentsMargins(const QMargins &margins);
     void getContentsMargins(int *left, int *top, int *right, int *bottom) const;
+    QMargins contentsMargins() const;
+
     QRect contentsRect() const;
 
 public:
@@ -530,6 +566,7 @@ public:
 
     QWidget *focusWidget() const;
     QWidget *nextInFocusChain() const;
+    QWidget *previousInFocusChain() const;
 
     // drag and drop
     bool acceptDrops() const;
@@ -583,10 +620,10 @@ public:
     QPaintEngine *paintEngine() const;
 
     void ensurePolished() const;
-
+#ifndef QT_NO_IM
     QInputContext *inputContext();
     void setInputContext(QInputContext *);
-
+#endif
     bool isAncestorOf(const QWidget *child) const;
 
 #ifdef QT_KEYPAD_NAVIGATION
@@ -599,6 +636,16 @@ public:
 
     void setWindowSurface(QWindowSurface *surface);
     QWindowSurface *windowSurface() const;
+
+#if defined(Q_WS_QPA)
+    void setPlatformWindow(QPlatformWindow *window);
+    QPlatformWindow *platformWindow() const;
+
+    void setPlatformWindowFormat(const QPlatformWindowFormat &format);
+    QPlatformWindowFormat platformWindowFormat() const;
+
+    friend class QDesktopScreenWidget;
+#endif
 
 Q_SIGNALS:
     void customContextMenuRequested(const QPoint &pos);
@@ -664,6 +711,10 @@ protected:
     virtual void inputMethodEvent(QInputMethodEvent *);
 public:
     virtual QVariant inputMethodQuery(Qt::InputMethodQuery) const;
+
+    Qt::InputMethodHints inputMethodHints() const;
+    void setInputMethodHints(Qt::InputMethodHints hints);
+
 protected:
     void resetInputContext();
 protected Q_SLOTS:
@@ -685,11 +736,7 @@ private:
 
     bool testAttribute_helper(Qt::WidgetAttribute) const;
 
-    friend void qt_syncBackingStore(QWidget *);
-    friend void qt_syncBackingStore(QRegion, QWidget *);
-    friend void qt_syncBackingStore(QRegion, QWidget *, bool);
-    friend QRegion qt_dirtyRegion(QWidget *, bool);
-    friend QWindowSurface *qt_default_window_surface(QWidget*);
+    QLayout *takeLayout();
 
     friend class QBackingStoreDevice;
     friend class QWidgetBackingStore;
@@ -707,25 +754,32 @@ private:
     friend class QWidgetItemV2;
     friend class QGLContext;
     friend class QGLWidget;
+    friend class QGLWindowSurface;
     friend class QX11PaintEngine;
     friend class QWin32PaintEngine;
     friend class QShortcutPrivate;
+    friend class QShortcutMap;
     friend class QWindowSurface;
-    friend class QD3DWindowSurface;
     friend class QGraphicsProxyWidget;
     friend class QGraphicsProxyWidgetPrivate;
     friend class QStyleSheetStyle;
+    friend struct QWidgetExceptionCleaner;
+#ifndef QT_NO_GESTURES
+    friend class QGestureManager;
+    friend class QWinNativePanGestureRecognizer;
+#endif // QT_NO_GESTURES
+    friend class QWidgetEffectSourcePrivate;
 
 #ifdef Q_WS_MAC
-#ifdef Q_WS_MAC32
-    friend class QMacSavedPortInfo;
-#endif
     friend class QCoreGraphicsPaintEnginePrivate;
     friend QPoint qt_mac_posInWindow(const QWidget *w);
-    friend WindowPtr qt_mac_window_for(const QWidget *w);
+    friend OSWindowRef qt_mac_window_for(const QWidget *w);
     friend bool qt_mac_is_metal(const QWidget *w);
-    friend HIViewRef qt_mac_hiview_for(const QWidget *w);
+    friend OSViewRef qt_mac_nativeview_for(const QWidget *w);
     friend void qt_event_request_window_change(QWidget *widget);
+    friend bool qt_mac_sendMacEventToWidget(QWidget *widget, EventRef ref);
+    friend class QRasterWindowSurface;
+    friend class QUnifiedToolbarSurface;
 #endif
 #ifdef Q_WS_QWS
     friend class QWSBackingStore;
@@ -738,6 +792,15 @@ private:
     friend bool isWidgetOpaque(const QWidget *);
     friend class QGLWidgetPrivate;
 #endif
+#ifdef Q_OS_SYMBIAN
+    friend class QSymbianControl;
+    friend class QS60WindowSurface;
+#endif
+#ifdef Q_WS_X11
+    friend void qt_net_update_user_time(QWidget *tlw, unsigned long timestamp);
+    friend void qt_net_remove_user_time(QWidget *tlw);
+    friend void qt_set_winid_on_widget(QWidget*, Qt::HANDLE);
+#endif
 
     friend Q_GUI_EXPORT QWidgetData *qt_qwidget_data(QWidget *widget);
     friend Q_GUI_EXPORT QWidgetPrivate *qt_widget_private(QWidget *widget);
@@ -745,6 +808,9 @@ private:
 private:
     Q_DISABLE_COPY(QWidget)
     Q_PRIVATE_SLOT(d_func(), void _q_showIfNotHidden())
+#ifdef Q_OS_SYMBIAN
+    Q_PRIVATE_SLOT(d_func(), void void _q_cleanupWinIds())
+#endif
 
     QWidgetData *data;
 
@@ -797,7 +863,7 @@ public:
     inline QT3_SUPPORT void setFont(const QFont &f, bool) { setFont(f); }
     inline QT3_SUPPORT void setPalette(const QPalette &p, bool) { setPalette(p); }
     enum BackgroundOrigin { WidgetOrigin, ParentOrigin, WindowOrigin, AncestorOrigin };
-    inline QT3_SUPPORT void setBackgroundOrigin(BackgroundOrigin){};
+    inline QT3_SUPPORT void setBackgroundOrigin(BackgroundOrigin) {}
     inline QT3_SUPPORT BackgroundOrigin backgroundOrigin() const { return WindowOrigin; }
     inline QT3_SUPPORT QPoint backgroundOffset() const { return QPoint(); }
     inline QT3_SUPPORT void repaint(bool) { repaint(); }
@@ -854,13 +920,6 @@ protected:
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QWidget::RenderFlags)
 
-#if defined Q_CC_MSVC && _MSC_VER < 1300
-template <> inline QWidget *qobject_cast_helper<QWidget*>(QObject *o, QWidget *)
-{
-    if (!o || !o->isWidgetType()) return 0;
-    return (QWidget*)(o);
-}
-#else
 template <> inline QWidget *qobject_cast<QWidget*>(QObject *o)
 {
     if (!o || !o->isWidgetType()) return 0;
@@ -871,7 +930,6 @@ template <> inline const QWidget *qobject_cast<const QWidget*>(const QObject *o)
     if (!o || !o->isWidgetType()) return 0;
     return static_cast<const QWidget*>(o);
 }
-#endif
 
 inline QWidget *QWidget::childAt(int ax, int ay) const
 { return childAt(QPoint(ax, ay)); }

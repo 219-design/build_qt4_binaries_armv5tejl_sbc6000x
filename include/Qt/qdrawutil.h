@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -40,7 +44,8 @@
 
 #include <QtCore/qnamespace.h>
 #include <QtCore/qstring.h> // char*->QString conversion
-
+#include <QtCore/qmargins.h>
+#include <QtGui/qpixmap.h>
 QT_BEGIN_HEADER
 
 QT_BEGIN_NAMESPACE
@@ -56,7 +61,6 @@ class QPoint;
 class QColor;
 class QBrush;
 class QRect;
-class QPixmap;
 
 //
 // Standard shade drawing
@@ -128,6 +132,61 @@ Q_GUI_EXPORT QT3_SUPPORT void qDrawArrow(QPainter *p, Qt::ArrowType type, Qt::GU
                           int x, int y, int w, int h,
                           const QPalette &pal, bool enabled);
 #endif
+
+struct QTileRules
+{
+    inline QTileRules(Qt::TileRule horizontalRule, Qt::TileRule verticalRule)
+            : horizontal(horizontalRule), vertical(verticalRule) {}
+    inline QTileRules(Qt::TileRule rule = Qt::StretchTile)
+            : horizontal(rule), vertical(rule) {}
+    Qt::TileRule horizontal;
+    Qt::TileRule vertical;
+};
+
+#ifndef Q_QDOC
+// For internal use only.
+namespace QDrawBorderPixmap
+{
+    enum DrawingHint
+    {
+        OpaqueTopLeft = 0x0001,
+        OpaqueTop = 0x0002,
+        OpaqueTopRight = 0x0004,
+        OpaqueLeft = 0x0008,
+        OpaqueCenter = 0x0010,
+        OpaqueRight = 0x0020,
+        OpaqueBottomLeft = 0x0040,
+        OpaqueBottom = 0x0080,
+        OpaqueBottomRight = 0x0100,
+        OpaqueCorners = OpaqueTopLeft | OpaqueTopRight | OpaqueBottomLeft | OpaqueBottomRight,
+        OpaqueEdges = OpaqueTop | OpaqueLeft | OpaqueRight | OpaqueBottom,
+        OpaqueFrame = OpaqueCorners | OpaqueEdges,
+        OpaqueAll = OpaqueCenter | OpaqueFrame
+    };
+
+    Q_DECLARE_FLAGS(DrawingHints, DrawingHint)
+}
+#endif
+
+Q_GUI_EXPORT void qDrawBorderPixmap(QPainter *painter,
+                                    const QRect &targetRect,
+                                    const QMargins &targetMargins,
+                                    const QPixmap &pixmap,
+                                    const QRect &sourceRect,
+                                    const QMargins &sourceMargins,
+                                    const QTileRules &rules = QTileRules()
+#ifndef Q_QDOC
+                                    , QDrawBorderPixmap::DrawingHints hints = 0
+#endif
+                                    );
+
+inline void qDrawBorderPixmap(QPainter *painter,
+                                           const QRect &target,
+                                           const QMargins &margins,
+                                           const QPixmap &pixmap)
+{
+    qDrawBorderPixmap(painter, target, margins, pixmap, pixmap.rect(), margins);
+}
 
 QT_END_NAMESPACE
 

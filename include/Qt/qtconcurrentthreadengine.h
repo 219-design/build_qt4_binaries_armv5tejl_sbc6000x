@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -47,6 +51,8 @@
 #include <QtCore/qdebug.h>
 #include <QtCore/qtconcurrentexception.h>
 #include <QtCore/qwaitcondition.h>
+#include <QtCore/qatomic.h>
+#include <QtCore/qsemaphore.h>
 
 QT_BEGIN_HEADER
 QT_BEGIN_NAMESPACE
@@ -57,55 +63,29 @@ QT_MODULE(Core)
 
 namespace QtConcurrent {
 
-// A Semaphore that can wait until all resources are returned.
-class ThreadEngineSemaphore
+// The ThreadEngineBarrier counts worker threads, and allows one
+// thread to wait for all others to finish. Tested for its use in
+// QtConcurrent, requires more testing for use as a general class.
+class ThreadEngineBarrier
 {
-public:
-    ThreadEngineSemaphore()
-    :count(0) { }
-
-    void acquire()
-    {
-        QMutexLocker lock(&mutex);
-        ++count;
-    }
-
-    int release()
-    {
-        QMutexLocker lock(&mutex);
-        if (--count == 0)
-            waitCondition.wakeAll();
-        return count;
-    }
-
-    // Wait until all resources are released.
-    void wait()
-    {
-        QMutexLocker lock(&mutex);
-        if (count != 0)
-            waitCondition.wait(&mutex);
-    }
-
-    int currentCount()
-    {
-        return count;
-    }
-
-    // releases a resource, unless this is the last resource.
-    // returns true if a resource was released.
-    bool releaseUnlessLast()
-    {
-        QMutexLocker lock(&mutex);
-        if (count == 1)
-            return false;
-        --count;
-        return true;
-    }
-
 private:
+    // The thread count is maintained as an integer in the count atomic
+    // variable. The count can be either positive or negative - a negative
+    // count signals that a thread is waiting on the barrier.
+
+    // BC note: inlined code from Qt < 4.6 will expect to find the QMutex 
+    // and QAtomicInt here. ### Qt 5: remove.
     QMutex mutex;
-    int count;
-    QWaitCondition waitCondition;
+    QAtomicInt count;
+
+    QSemaphore semaphore;
+public:
+    ThreadEngineBarrier();
+    void acquire();
+    int release();
+    void wait();
+    int currentCount();
+    bool releaseUnlessLast();
 };
 
 enum ThreadFunctionResult { ThrottleThread, ThreadFinished };
@@ -124,16 +104,18 @@ public:
     void startBlocking();
     void startThread();
     bool isCanceled();
+    void waitForResume();
     bool isProgressReportingEnabled();
     void setProgressValue(int progress);
     void setProgressRange(int minimum, int maximum);
+    void acquireBarrierSemaphore();
 
 protected: // The user overrides these:
     virtual void start() {}
     virtual void finish() {}
     virtual ThreadFunctionResult threadFunction() { return ThreadFinished; }
-    virtual bool shouldStartThread() { return true; }
-    virtual bool shouldThrottleThread() { return false; }
+    virtual bool shouldStartThread() { return futureInterface ? !futureInterface->isPaused() : true; }
+    virtual bool shouldThrottleThread() { return futureInterface ? futureInterface->isPaused() : false; }
 private:
     bool startThreadInternal();
     void startThreads();
@@ -147,7 +129,7 @@ private:
 protected:
     QFutureInterfaceBase *futureInterface;
     QThreadPool *threadPool;
-    ThreadEngineSemaphore semaphore;
+    ThreadEngineBarrier barrier;
     QtConcurrent::internal::ExceptionStore exceptionStore;
 };
 
@@ -194,7 +176,7 @@ public:
         QFuture<T> future = QFuture<T>(futureInterfaceTyped());
         start();
 
-        semaphore.acquire();
+        acquireBarrierSemaphore();
         threadPool->start(this);
         return future;
     }
@@ -256,9 +238,11 @@ protected:
 template <typename T>
 class ThreadEngineStarter : public ThreadEngineStarterBase<T>
 {
+    typedef ThreadEngineStarterBase<T> Base;
+    typedef ThreadEngine<T> TypedThreadEngine;
 public:
-    ThreadEngineStarter(ThreadEngine<T> *threadEngine)
-    :ThreadEngineStarterBase<T>(threadEngine) {}
+    ThreadEngineStarter(TypedThreadEngine *eng)
+        : Base(eng) { }
 
     T startBlocking()
     {

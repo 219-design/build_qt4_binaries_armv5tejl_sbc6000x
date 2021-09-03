@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -48,6 +52,13 @@
 #include <QtGui/qmime.h>
 #include <QtGui/qdrag.h>
 #include <QtCore/qvariant.h>
+#include <QtCore/qmap.h>
+#include <QtCore/qset.h>
+#include <QtCore/qfile.h>
+
+#ifdef Q_OS_SYMBIAN
+class RFile;
+#endif
 
 QT_BEGIN_HEADER
 
@@ -56,6 +67,9 @@ QT_BEGIN_NAMESPACE
 QT_MODULE(Gui)
 
 class QAction;
+#ifndef QT_NO_GESTURES
+class QGesture;
+#endif
 
 class Q_GUI_EXPORT QInputEvent : public QEvent
 {
@@ -63,6 +77,7 @@ public:
     QInputEvent(Type type, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
     ~QInputEvent();
     inline Qt::KeyboardModifiers modifiers() const { return modState; }
+    inline void setModifiers(Qt::KeyboardModifiers amodifiers) { modState = amodifiers; }
 protected:
     Qt::KeyboardModifiers modState;
 };
@@ -237,7 +252,7 @@ public:
     inline QT3_SUPPORT_CONSTRUCTOR QKeyEvent(Type type, int key, int /*ascii*/,
                                            int modifiers, const QString& text = QString(),
                                            bool autorep = false, ushort count = 1)
-        : QInputEvent(type, (Qt::KeyboardModifiers)(modifiers & (int)Qt::KeyButtonMask)), txt(text), k(key),
+        : QInputEvent(type, Qt::KeyboardModifiers(modifiers & (int)Qt::KeyButtonMask)), txt(text), k(key),
           c(count), autor(autorep)
     {
         if (key >= Qt::Key_Back && key <= Qt::Key_MediaLast)
@@ -420,7 +435,8 @@ public:
        TextFormat,
        Cursor,
        Language,
-       Ruby
+       Ruby,
+       Selection
     };
     class Attribute {
     public:
@@ -629,9 +645,15 @@ class Q_GUI_EXPORT QFileOpenEvent : public QEvent
 {
 public:
     QFileOpenEvent(const QString &file);
+    QFileOpenEvent(const QUrl &url);
+#ifdef Q_OS_SYMBIAN
+    QFileOpenEvent(const RFile &fileHandle);
+#endif
     ~QFileOpenEvent();
 
     inline QString file() const { return f; }
+    QUrl url() const;
+    bool openFile(QFile &file, QIODevice::OpenMode flags) const;
 private:
     QString f;
 };
@@ -676,7 +698,7 @@ public:
     QClipboardEvent(QEventPrivate *data);
     ~QClipboardEvent();
 
-    QEventPrivate *data() { return d; };
+    QEventPrivate *data() { return d; }
 };
 #endif
 
@@ -714,6 +736,158 @@ Q_GUI_EXPORT QDebug operator<<(QDebug, const QEvent *);
 inline bool operator==(QKeyEvent *e, QKeySequence::StandardKey key){return (e ? e->matches(key) : false);}
 inline bool operator==(QKeySequence::StandardKey key, QKeyEvent *e){return (e ? e->matches(key) : false);}
 #endif // QT_NO_SHORTCUT
+
+class QTouchEventTouchPointPrivate;
+class Q_GUI_EXPORT QTouchEvent : public QInputEvent
+{
+public:
+    class Q_GUI_EXPORT TouchPoint
+    {
+    public:
+        TouchPoint(int id = -1);
+        TouchPoint(const QTouchEvent::TouchPoint &other);
+        ~TouchPoint();
+
+        int id() const;
+
+        Qt::TouchPointState state() const;
+        bool isPrimary() const;
+
+        QPointF pos() const;
+        QPointF startPos() const;
+        QPointF lastPos() const;
+
+        QPointF scenePos() const;
+        QPointF startScenePos() const;
+        QPointF lastScenePos() const;
+
+        QPointF screenPos() const;
+        QPointF startScreenPos() const;
+        QPointF lastScreenPos() const;
+
+        QPointF normalizedPos() const;
+        QPointF startNormalizedPos() const;
+        QPointF lastNormalizedPos() const;
+
+        QRectF rect() const;
+        QRectF sceneRect() const;
+        QRectF screenRect() const;
+
+        qreal pressure() const;
+
+        // internal
+        void setId(int id);
+        void setState(Qt::TouchPointStates state);
+        void setPos(const QPointF &pos);
+        void setScenePos(const QPointF &scenePos);
+        void setScreenPos(const QPointF &screenPos);
+        void setNormalizedPos(const QPointF &normalizedPos);
+        void setStartPos(const QPointF &startPos);
+        void setStartScenePos(const QPointF &startScenePos);
+        void setStartScreenPos(const QPointF &startScreenPos);
+        void setStartNormalizedPos(const QPointF &startNormalizedPos);
+        void setLastPos(const QPointF &lastPos);
+        void setLastScenePos(const QPointF &lastScenePos);
+        void setLastScreenPos(const QPointF &lastScreenPos);
+        void setLastNormalizedPos(const QPointF &lastNormalizedPos);
+        void setRect(const QRectF &rect);
+        void setSceneRect(const QRectF &sceneRect);
+        void setScreenRect(const QRectF &screenRect);
+        void setPressure(qreal pressure);
+        QTouchEvent::TouchPoint &operator=(const QTouchEvent::TouchPoint &other);
+
+    private:
+        QTouchEventTouchPointPrivate *d;
+        friend class QApplication;
+        friend class QApplicationPrivate;
+    };
+
+    enum DeviceType {
+        TouchScreen,
+        TouchPad
+    };
+
+    QTouchEvent(QEvent::Type eventType,
+                QTouchEvent::DeviceType deviceType = TouchScreen,
+                Qt::KeyboardModifiers modifiers = Qt::NoModifier,
+                Qt::TouchPointStates touchPointStates = 0,
+                const QList<QTouchEvent::TouchPoint> &touchPoints = QList<QTouchEvent::TouchPoint>());
+    ~QTouchEvent();
+
+    inline QWidget *widget() const { return _widget; }
+    inline QTouchEvent::DeviceType deviceType() const { return _deviceType; }
+    inline Qt::TouchPointStates touchPointStates() const { return _touchPointStates; }
+    inline const QList<QTouchEvent::TouchPoint> &touchPoints() const { return _touchPoints; }
+
+    // internal
+    inline void setWidget(QWidget *awidget) { _widget = awidget; }
+    inline void setDeviceType(DeviceType adeviceType) { _deviceType = adeviceType; }
+    inline void setTouchPointStates(Qt::TouchPointStates aTouchPointStates) { _touchPointStates = aTouchPointStates; }
+    inline void setTouchPoints(const QList<QTouchEvent::TouchPoint> &atouchPoints) { _touchPoints = atouchPoints; }
+
+protected:
+    QWidget *_widget;
+    QTouchEvent::DeviceType _deviceType;
+    Qt::TouchPointStates _touchPointStates;
+    QList<QTouchEvent::TouchPoint> _touchPoints;
+
+    friend class QApplication;
+    friend class QApplicationPrivate;
+};
+
+#ifndef QT_NO_GESTURES
+class QGesture;
+class QGestureEventPrivate;
+class Q_GUI_EXPORT QGestureEvent : public QEvent
+{
+public:
+    QGestureEvent(const QList<QGesture *> &gestures);
+    ~QGestureEvent();
+
+    QList<QGesture *> gestures() const;
+    QGesture *gesture(Qt::GestureType type) const;
+
+    QList<QGesture *> activeGestures() const;
+    QList<QGesture *> canceledGestures() const;
+
+#ifdef Q_NO_USING_KEYWORD
+    inline void setAccepted(bool accepted) { QEvent::setAccepted(accepted); }
+    inline bool isAccepted() const { return QEvent::isAccepted(); }
+
+    inline void accept() { QEvent::accept(); }
+    inline void ignore() { QEvent::ignore(); }
+#else
+    using QEvent::setAccepted;
+    using QEvent::isAccepted;
+    using QEvent::accept;
+    using QEvent::ignore;
+#endif
+
+    void setAccepted(QGesture *, bool);
+    void accept(QGesture *);
+    void ignore(QGesture *);
+    bool isAccepted(QGesture *) const;
+
+    void setAccepted(Qt::GestureType, bool);
+    void accept(Qt::GestureType);
+    void ignore(Qt::GestureType);
+    bool isAccepted(Qt::GestureType) const;
+
+    void setWidget(QWidget *widget);
+    QWidget *widget() const;
+
+#ifndef QT_NO_GRAPHICSVIEW
+    QPointF mapToGraphicsScene(const QPointF &gesturePoint) const;
+#endif
+
+private:
+    QGestureEventPrivate *d_func();
+    const QGestureEventPrivate *d_func() const;
+
+    friend class QApplication;
+    friend class QGestureManager;
+};
+#endif // QT_NO_GESTURES
 
 QT_END_NAMESPACE
 

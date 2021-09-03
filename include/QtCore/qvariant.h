@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -43,6 +47,7 @@
 #include <QtCore/qlist.h>
 #include <QtCore/qmetatype.h>
 #include <QtCore/qmap.h>
+#include <QtCore/qhash.h>
 #include <QtCore/qstring.h>
 
 QT_BEGIN_HEADER
@@ -55,6 +60,7 @@ class QBitArray;
 class QDataStream;
 class QDate;
 class QDateTime;
+class QEasingCurve;
 class QLine;
 class QLineF;
 class QLocale;
@@ -77,19 +83,11 @@ class QUrl;
 class QVariant;
 class QVariantComparisonHelper;
 
-#ifndef QT_NO_MEMBER_TEMPLATES
 template <typename T>
 inline QVariant qVariantFromValue(const T &);
 
-template <typename T>
-inline void qVariantSetValue(QVariant &, const T &);
-
 template<typename T>
-inline T qVariantValue(const QVariant &);
-
-template<typename T>
-inline bool qVariantCanConvert(const QVariant &);
-#endif
+inline T qvariant_cast(const QVariant &);
 
 class Q_CORE_EXPORT QVariant
 {
@@ -123,8 +121,10 @@ class Q_CORE_EXPORT QVariant
         LineF = 24,
         Point = 25,
         PointF = 26,
-	RegExp = 27,
-        LastCoreType = RegExp,
+        RegExp = 27,
+        Hash = 28,
+        EasingCurve = 29,
+        LastCoreType = EasingCurve,
 
         // value 62 is internally reserved
 #ifdef QT3_SUPPORT
@@ -148,7 +148,12 @@ class Q_CORE_EXPORT QVariant
         TextFormat = 79,
         Matrix = 80,
         Transform = 81,
-        LastGuiType = Transform,
+        Matrix4x4 = 82,
+        Vector2D = 83,
+        Vector3D = 84,
+        Vector4D = 85,
+        Quaternion = 86,
+        LastGuiType = Quaternion,
 
         UserType = 127,
 #ifdef QT3_SUPPORT
@@ -163,6 +168,7 @@ class Q_CORE_EXPORT QVariant
     ~QVariant();
     QVariant(Type type);
     QVariant(int typeOrUserType, const void *copy);
+    QVariant(int typeOrUserType, const void *copy, uint flags);
     QVariant(const QVariant &other);
 
 #ifndef QT_NO_DATASTREAM
@@ -175,6 +181,7 @@ class Q_CORE_EXPORT QVariant
     QVariant(qulonglong ull);
     QVariant(bool b);
     QVariant(double d);
+    QVariant(float f) { d.is_null = false; d.type = QMetaType::Float; d.data.f = f; }
 #ifndef QT_NO_CAST_FROM_ASCII
     QT_ASCII_CAST_WARN_CONSTRUCTOR QVariant(const char *str);
 #endif
@@ -190,6 +197,7 @@ class Q_CORE_EXPORT QVariant
     QVariant(const QDateTime &datetime);
     QVariant(const QList<QVariant> &list);
     QVariant(const QMap<QString,QVariant> &map);
+    QVariant(const QHash<QString,QVariant> &hash);
 #ifndef QT_NO_GEOM_VARIANT
     QVariant(const QSize &size);
     QVariant(const QSizeF &size);
@@ -205,9 +213,18 @@ class Q_CORE_EXPORT QVariant
 #ifndef QT_NO_REGEXP
     QVariant(const QRegExp &regExp);
 #endif
+#ifndef QT_BOOTSTRAPPED
+    QVariant(const QEasingCurve &easing);
+#endif
     QVariant(Qt::GlobalColor color);
 
     QVariant& operator=(const QVariant &other);
+#ifdef Q_COMPILER_RVALUE_REFS
+    inline QVariant &operator=(QVariant &&other)
+    { qSwap(d, other.d); return *this; }
+#endif
+
+    inline void swap(QVariant &other) { qSwap(d, other.d); }
 
     Type type() const;
     int userType() const;
@@ -237,6 +254,8 @@ class Q_CORE_EXPORT QVariant
     qulonglong toULongLong(bool *ok = 0) const;
     bool toBool() const;
     double toDouble(bool *ok = 0) const;
+    float toFloat(bool *ok = 0) const;
+    qreal toReal(bool *ok = 0) const;
     QByteArray toByteArray() const;
     QBitArray toBitArray() const;
     QString toString() const;
@@ -247,6 +266,7 @@ class Q_CORE_EXPORT QVariant
     QDateTime toDateTime() const;
     QList<QVariant> toList() const;
     QMap<QString, QVariant> toMap() const;
+    QHash<QString, QVariant> toHash() const;
 
 #ifndef QT_NO_GEOM_VARIANT
     QPoint toPoint() const;
@@ -262,6 +282,9 @@ class Q_CORE_EXPORT QVariant
     QLocale toLocale() const;
 #ifndef QT_NO_REGEXP
     QRegExp toRegExp() const;
+#endif
+#ifndef QT_BOOTSTRAPPED
+    QEasingCurve toEasingCurve() const;
 #endif
 
 #ifdef QT3_SUPPORT
@@ -302,13 +325,12 @@ class Q_CORE_EXPORT QVariant
     const void *constData() const;
     inline const void *data() const { return constData(); }
 
-#ifndef QT_NO_MEMBER_TEMPLATES
     template<typename T>
     inline void setValue(const T &value);
 
     template<typename T>
     inline T value() const
-    { return qVariantValue<T>(*this); }
+    { return qvariant_cast<T>(*this); }
 
     template<typename T>
     static inline QVariant fromValue(const T &value)
@@ -316,14 +338,12 @@ class Q_CORE_EXPORT QVariant
 
     template<typename T>
     bool canConvert() const
-    { return qVariantCanConvert<T>(*this); }
-#endif
+    { return canConvert(Type(qMetaTypeId<T>())); }
 
  public:
 #ifndef qdoc
     struct PrivateShared
     {
-        inline PrivateShared() : ref(1) { }
         inline PrivateShared(void *v) : ptr(v), ref(1) { }
         void *ptr;
         QAtomicInt ref;
@@ -342,8 +362,11 @@ class Q_CORE_EXPORT QVariant
             uint u;
             bool b;
             double d;
+            float f;
+            qreal real;
             qlonglong ll;
             qulonglong ull;
+            QObject *o;
             void *ptr;
             PrivateShared *shared;
         } data;
@@ -402,6 +425,8 @@ protected:
     bool cmp(const QVariant &other) const;
 
 private:
+    // force compile error, prevent QVariant(bool) to be called
+    inline QVariant(void *) { Q_ASSERT(false); }
 #ifdef QT_NO_CAST_FROM_ASCII
     // force compile error when implicit conversion is not wanted
     inline QVariant(const char *) { Q_ASSERT(false); }
@@ -417,6 +442,7 @@ public:
 
 typedef QList<QVariant> QVariantList;
 typedef QMap<QString, QVariant> QVariantMap;
+typedef QHash<QString, QVariant> QVariantHash;
 
 inline bool qvariant_cast_helper(const QVariant &v, QVariant::Type tp, void *ptr)
 { return QVariant::handler->convert(&v.d, tp, ptr, 0); }
@@ -424,7 +450,7 @@ inline bool qvariant_cast_helper(const QVariant &v, QVariant::Type tp, void *ptr
 template <typename T>
 inline QVariant qVariantFromValue(const T &t)
 {
-    return QVariant(qMetaTypeId<T>(reinterpret_cast<T *>(0)), &t);
+    return QVariant(qMetaTypeId<T>(reinterpret_cast<T *>(0)), &t, QTypeInfo<T>::isPointer);
 }
 
 template <>
@@ -433,8 +459,27 @@ inline QVariant qVariantFromValue(const QVariant &t) { return t; }
 template <typename T>
 inline void qVariantSetValue(QVariant &v, const T &t)
 {
-    v = QVariant(qMetaTypeId<T>(reinterpret_cast<T *>(0)), &t);
+    //if possible we reuse the current QVariant private
+    const uint type = qMetaTypeId<T>(reinterpret_cast<T *>(0));
+    QVariant::Private &d = v.data_ptr();
+    if (v.isDetached() && (type == d.type || (type <= uint(QVariant::Char) && d.type <= uint(QVariant::Char)))) {
+        d.type = type;
+        d.is_null = false;
+        T *old = reinterpret_cast<T*>(d.is_shared ? d.data.shared->ptr : &d.data.ptr);
+        if (QTypeInfo<T>::isComplex)
+            old->~T();
+        new (old) T(t); //call the copy constructor
+    } else {
+        v = QVariant(type, &t, QTypeInfo<T>::isPointer);
+    }
 }
+
+template <>
+inline void qVariantSetValue<QVariant>(QVariant &v, const QVariant &t)
+{
+    v = t;
+}
+
 
 inline QVariant::QVariant() {}
 inline bool QVariant::isValid() const { return d.type != Invalid; }
@@ -478,11 +523,9 @@ inline QSize &QVariant::asSize()
 { return *reinterpret_cast<QSize *>(castOrDetach(Size)); }
 #endif //QT3_SUPPORT
 
-#ifndef QT_NO_MEMBER_TEMPLATES
 template<typename T>
 inline void QVariant::setValue(const T &avalue)
 { qVariantSetValue(*this, avalue); }
-#endif
 
 #ifndef QT_NO_DATASTREAM
 Q_CORE_EXPORT QDataStream& operator>> (QDataStream& s, QVariant& p);
@@ -525,9 +568,7 @@ inline bool operator!=(const QVariant &v1, const QVariantComparisonHelper &v2)
 #endif
 
 #ifndef QT_MOC
-#if !defined qdoc && defined Q_CC_MSVC && _MSC_VER < 1300
-
-template<typename T> T qvariant_cast(const QVariant &v, T * = 0)
+template<typename T> inline T qvariant_cast(const QVariant &v)
 {
     const int vid = qMetaTypeId<T>(static_cast<T *>(0));
     if (vid == v.userType())
@@ -540,41 +581,23 @@ template<typename T> T qvariant_cast(const QVariant &v, T * = 0)
     return T();
 }
 
-template<typename T>
-inline T qVariantValue(const QVariant &variant, T *t = 0)
-{ return qvariant_cast<T>(variant, t); }
-
-template<typename T>
-inline bool qVariantCanConvert(const QVariant &variant, T *t = 0)
+template<> inline QVariant qvariant_cast<QVariant>(const QVariant &v)
 {
-    return variant.canConvert(static_cast<QVariant::Type>(qMetaTypeId<T>(t)));
-}
-#else
-
-template<typename T> T qvariant_cast(const QVariant &v)
-{
-    const int vid = qMetaTypeId<T>(static_cast<T *>(0));
-    if (vid == v.userType())
-        return *reinterpret_cast<const T *>(v.constData());
-    if (vid < int(QMetaType::User)) {
-        T t;
-        if (qvariant_cast_helper(v, QVariant::Type(vid), &t))
-            return t;
-    }
-    return T();
+    if (v.userType() == QMetaType::QVariant)
+        return *reinterpret_cast<const QVariant *>(v.constData());
+    return v;
 }
 
+#ifdef QT_DEPRECATED
 template<typename T>
-inline T qVariantValue(const QVariant &variant)
+inline QT_DEPRECATED T qVariantValue(const QVariant &variant)
 { return qvariant_cast<T>(variant); }
 
 template<typename T>
-inline bool qVariantCanConvert(const QVariant &variant)
-{
-    return variant.canConvert(static_cast<QVariant::Type>(
-                qMetaTypeId<T>(static_cast<T *>(0))));
-}
+inline QT_DEPRECATED bool qVariantCanConvert(const QVariant &variant)
+{ return variant.template canConvert<T>(); }
 #endif
+
 #endif
 Q_DECLARE_SHARED(QVariant)
 Q_DECLARE_TYPEINFO(QVariant, Q_MOVABLE_TYPE);
@@ -588,6 +611,7 @@ QT_END_NAMESPACE
 
 Q_DECLARE_BUILTIN_METATYPE(QVariantList, QVariantList)
 Q_DECLARE_BUILTIN_METATYPE(QVariantMap, QVariantMap)
+Q_DECLARE_BUILTIN_METATYPE(QVariantHash, QVariantHash)
 
 QT_END_HEADER
 

@@ -1,49 +1,54 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
 #ifndef QXMLSTREAM_H
 #define QXMLSTREAM_H
 
-#include <QtCore/QIODevice>
+#include <QtCore/qiodevice.h>
 
 #ifndef QT_NO_XMLSTREAM
 
-#include <QtCore/QString>
-#include <QtCore/QVector>
+#include <QtCore/qstring.h>
+#include <QtCore/qvector.h>
+#include <QtCore/qscopedpointer.h>
 
 QT_BEGIN_HEADER
 
@@ -56,11 +61,12 @@ QT_MODULE(Core)
 // keep binary compatibility
 //
 // The list of supported platforms is in:
-//   http://trolltech.com/developer/notes/supported_platforms
+//   http://qt.nokia.com/doc/supported_platforms.html
 //
 // These platforms do not support symbol moving nor duplication
 // (because duplicate symbols cause warnings when linking):
 //   Apple MacOS X (Mach-O executable format)
+//       special case: 64-bit on Mac wasn't supported before 4.5.0
 //   IBM AIX (XCOFF executable format)
 //
 // These platforms do not support symbol moving but allow it to be duplicated:
@@ -79,7 +85,7 @@ QT_MODULE(Core)
 // We are taking the optimist scenario here to avoid creating more
 // symbols to be supported.
 
-#if defined(Q_OS_MAC) || defined(Q_OS_AIX)
+#if defined(Q_OS_MAC32) || defined(Q_OS_AIX)
 # if !defined QT_BUILD_XML_LIB
 #  define Q_XMLSTREAM_RENAME_SYMBOLS
 # endif
@@ -163,6 +169,7 @@ Q_DECLARE_TYPEINFO(QXmlStreamAttribute, Q_MOVABLE_TYPE);
 class Q_XMLSTREAM_EXPORT QXmlStreamAttributes : public QVector<QXmlStreamAttribute>
 {
 public:
+    inline QXmlStreamAttributes() {}
     QStringRef value(const QString &namespaceUri, const QString &name) const;
     QStringRef value(const QString &namespaceUri, const QLatin1String &name) const;
     QStringRef value(const QLatin1String &namespaceUri, const QLatin1String &name) const;
@@ -170,6 +177,22 @@ public:
     QStringRef value(const QLatin1String &qualifiedName) const;
     void append(const QString &namespaceUri, const QString &name, const QString &value);
     void append(const QString &qualifiedName, const QString &value);
+
+    inline bool hasAttribute(const QString &qualifiedName) const
+    {
+        return !value(qualifiedName).isNull();
+    }
+
+    inline bool hasAttribute(const QLatin1String &qualifiedName) const
+    {
+        return !value(qualifiedName).isNull();
+    }
+
+    inline bool hasAttribute(const QString &namespaceUri, const QString &name) const
+    {
+        return !value(namespaceUri, name).isNull();
+    }
+
 #if !defined(Q_NO_USING_KEYWORD)
     using QVector<QXmlStreamAttribute>::append;
 #else
@@ -300,6 +323,9 @@ public:
     bool atEnd() const;
     TokenType readNext();
 
+    bool readNextStartElement();
+    void skipCurrentElement();
+
     TokenType tokenType() const;
     QString tokenString() const;
 
@@ -327,6 +353,13 @@ public:
     qint64 characterOffset() const;
 
     QXmlStreamAttributes attributes() const;
+
+    enum ReadElementTextBehaviour {
+        ErrorOnUnexpectedElement,
+        IncludeChildElements,
+        SkipChildElements
+    };
+    QString readElementText(ReadElementTextBehaviour behaviour);
     QString readElementText();
 
     QStringRef name() const;
@@ -371,7 +404,7 @@ public:
 private:
     Q_DISABLE_COPY(QXmlStreamReader)
     Q_DECLARE_PRIVATE(QXmlStreamReader)
-    QXmlStreamReaderPrivate *d_ptr;
+    QScopedPointer<QXmlStreamReaderPrivate> d_ptr;
 
 };
 #endif // QT_NO_XMLSTREAMREADER
@@ -403,7 +436,7 @@ public:
     void setAutoFormatting(bool);
     bool autoFormatting() const;
 
-    void setAutoFormattingIndent(int spaces);
+    void setAutoFormattingIndent(int spacesOrTabs);
     int autoFormattingIndent() const;
 
     void writeAttribute(const QString &qualifiedName, const QString &value);
@@ -433,6 +466,7 @@ public:
 
     void writeStartDocument();
     void writeStartDocument(const QString &version);
+    void writeStartDocument(const QString &version, bool standalone);
     void writeStartElement(const QString &qualifiedName);
     void writeStartElement(const QString &namespaceUri, const QString &name);
 
@@ -440,10 +474,12 @@ public:
     void writeCurrentToken(const QXmlStreamReader &reader);
 #endif
 
+    bool hasError() const;
+
 private:
     Q_DISABLE_COPY(QXmlStreamWriter)
     Q_DECLARE_PRIVATE(QXmlStreamWriter)
-    QXmlStreamWriterPrivate *d_ptr;
+    QScopedPointer<QXmlStreamWriterPrivate> d_ptr;
 };
 #endif // QT_NO_XMLSTREAMWRITER
 

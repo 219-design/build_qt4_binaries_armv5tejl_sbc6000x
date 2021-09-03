@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -47,6 +51,8 @@ QT_BEGIN_NAMESPACE
 QT_MODULE(Gui)
 
 #ifndef QT_NO_ACCESSIBILITY
+
+class QModelIndex;
 
 namespace QAccessible2
 {
@@ -64,6 +70,24 @@ namespace QAccessible2
         LineBoundary,
         NoBoundary
     };
+
+    enum TableModelChangeType {
+        TableModelChangeInsert,
+        TableModelChangeDelete,
+        TableModelChangeUpdate
+    };
+
+    struct TableModelChange {
+        int firstColumn;
+        int firstRow;
+        int lastColumn;
+        int lastRow;
+        TableModelChangeType type;
+
+        TableModelChange()
+            : firstColumn(0), firstRow(0), lastColumn(0), lastRow(0), type(TableModelChangeUpdate)
+        {}
+    };
 }
 
 class Q_GUI_EXPORT QAccessible2Interface
@@ -77,6 +101,9 @@ inline QAccessible2Interface *qAccessibleValueCastHelper() { return 0; }
 inline QAccessible2Interface *qAccessibleTextCastHelper() { return 0; }
 inline QAccessible2Interface *qAccessibleEditableTextCastHelper() { return 0; }
 inline QAccessible2Interface *qAccessibleTableCastHelper() { return 0; }
+inline QAccessible2Interface *qAccessibleActionCastHelper() { return 0; }
+inline QAccessible2Interface *qAccessibleImageCastHelper() { return 0; }
+inline QAccessible2Interface *qAccessibleTable2CastHelper() { return 0; }
 
 #define Q_ACCESSIBLE_OBJECT \
     public: \
@@ -91,6 +118,12 @@ inline QAccessible2Interface *qAccessibleTableCastHelper() { return 0; }
             return qAccessibleValueCastHelper(); \
         case QAccessible2::TableInterface: \
             return qAccessibleTableCastHelper(); \
+        case QAccessible2::ActionInterface: \
+            return qAccessibleActionCastHelper(); \
+        case QAccessible2::ImageInterface: \
+            return qAccessibleImageCastHelper(); \
+        case QAccessible2::Table2Interface: \
+            return qAccessibleTable2CastHelper(); \
         } \
         return 0; \
     } \
@@ -202,6 +235,118 @@ public:
     virtual void unselectColumn(int column) = 0;
     virtual void cellAtIndex(int index, int *row, int *column, int *rowSpan,
                              int *columnSpan, bool *isSelected) = 0;
+};
+
+class Q_GUI_EXPORT QAccessibleTable2CellInterface: public QAccessibleInterface
+{
+public:
+    //            Returns the number of columns occupied by this cell accessible.
+    virtual int columnExtent() const = 0;
+
+    //            Returns the column headers as an array of cell accessibles.
+    virtual QList<QAccessibleInterface*> columnHeaderCells() const = 0;
+
+    //            Translates this cell accessible into the corresponding column index.
+    virtual int columnIndex() const = 0;
+    //            Returns the number of rows occupied by this cell accessible.
+    virtual int rowExtent() const = 0;
+    //            Returns the row headers as an array of cell accessibles.
+    virtual QList<QAccessibleInterface*> rowHeaderCells() const = 0;
+    //            Translates this cell accessible into the corresponding row index.
+    virtual int rowIndex() const = 0;
+    //            Returns a boolean value indicating whether this cell is selected.
+    virtual bool isSelected() const = 0;
+
+    //            Gets the row and column indexes and extents of this cell accessible and whether or not it is selected.
+    virtual void rowColumnExtents(int *row, int *column, int *rowExtents, int *columnExtents, bool *selected) const = 0;
+    //            Returns a reference to the accessbile of the containing table.
+    virtual QAccessibleTable2Interface* table() const = 0;
+
+    // #### Qt5 this should not be here but part of the state
+    virtual bool isExpandable() const = 0;
+};
+
+class Q_GUI_EXPORT QAccessibleTable2Interface: public QAccessible2Interface
+{
+public:
+    inline QAccessible2Interface *qAccessibleTable2CastHelper() { return this; }
+
+    // Returns the cell at the specified row and column in the table.
+    virtual QAccessibleTable2CellInterface *cellAt (int row, int column) const = 0;
+    // Returns the caption for the table.
+    virtual QAccessibleInterface *caption() const = 0;
+    // Returns the description text of the specified column in the table.
+    virtual QString columnDescription(int column) const = 0;
+    // Returns the total number of columns in table.
+    virtual int columnCount() const = 0;
+    // Returns the total number of rows in table.
+    virtual int rowCount() const = 0;
+    // Returns the total number of selected cells.
+    virtual int selectedCellCount() const = 0;
+    // Returns the total number of selected columns.
+    virtual int selectedColumnCount() const = 0;
+    // Returns the total number of selected rows.
+    virtual int selectedRowCount() const = 0;
+    // Returns the description text of the specified row in the table.
+    virtual QString rowDescription(int row) const = 0;
+    // Returns a list of accessibles currently selected.
+    virtual QList<QAccessibleTable2CellInterface*> selectedCells() const = 0;
+    // Returns a list of column indexes currently selected (0 based).
+    virtual QList<int> selectedColumns() const = 0;
+    // Returns a list of row indexes currently selected (0 based).
+    virtual QList<int> selectedRows() const = 0;
+    // Returns the summary description of the table.
+    virtual QAccessibleInterface *summary() const = 0;
+    // Returns a boolean value indicating whether the specified column is completely selected.
+    virtual bool isColumnSelected(int column) const = 0;
+    // Returns a boolean value indicating whether the specified row is completely selected.
+    virtual bool isRowSelected(int row) const = 0;
+    // Selects a row and unselects all previously selected rows.
+    virtual bool selectRow(int row) = 0;
+    // Selects a column and unselects all previously selected columns.
+    virtual bool selectColumn(int column) = 0;
+    // Unselects one row, leaving other selected rows selected (if any).
+    virtual bool unselectRow(int row) = 0;
+    // Unselects one column, leaving other selected columns selected (if any).
+    virtual bool unselectColumn(int column) = 0;
+    // Returns the type and extents describing how a table changed.
+    virtual QAccessible2::TableModelChange modelChange() const = 0;
+
+protected:
+    // These functions are called when the model changes.
+    virtual void modelReset() = 0;
+    virtual void rowsInserted(const QModelIndex &parent, int first, int last) = 0;
+    virtual void rowsRemoved(const QModelIndex &parent, int first, int last) = 0;
+    virtual void columnsInserted(const QModelIndex &parent, int first, int last) = 0;
+    virtual void columnsRemoved(const QModelIndex &parent, int first, int last) = 0;
+    virtual void rowsMoved( const QModelIndex &parent, int start, int end, const QModelIndex &destination, int row) = 0;
+    virtual void columnsMoved( const QModelIndex &parent, int start, int end, const QModelIndex &destination, int column) = 0;
+
+friend class QAbstractItemView;
+friend class QAbstractItemViewPrivate;
+};
+
+class Q_GUI_EXPORT QAccessibleActionInterface : public QAccessible2Interface
+{
+public:
+    inline QAccessible2Interface *qAccessibleActionCastHelper() { return this; }
+
+    virtual int actionCount() = 0;
+    virtual void doAction(int actionIndex) = 0;
+    virtual QString description(int actionIndex) = 0;
+    virtual QString name(int actionIndex) = 0;
+    virtual QString localizedName(int actionIndex) = 0;
+    virtual QStringList keyBindings(int actionIndex) = 0;
+};
+
+class Q_GUI_EXPORT QAccessibleImageInterface : public QAccessible2Interface
+{
+public:
+    inline QAccessible2Interface *qAccessibleImageCastHelper() { return this; }
+
+    virtual QString imageDescription() = 0;
+    virtual QSize imageSize() = 0;
+    virtual QRect imagePosition(QAccessible2::CoordinateType coordType) = 0;
 };
 
 #endif // QT_NO_ACCESSIBILITY

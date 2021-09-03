@@ -1,34 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -37,11 +44,13 @@
 
 #include <QtCore/qnamespace.h>
 #include <QtCore/qpoint.h>
-#include <QtCore/qlist.h>
+#include <QtCore/qstringlist.h>
 #include <QtGui/qrgb.h>
 #include <QtCore/qrect.h>
 #include <QtGui/qimage.h>
 #include <QtGui/qregion.h>
+
+struct fb_cmap;
 
 QT_BEGIN_HEADER
 
@@ -53,6 +62,7 @@ class QScreenCursor;
 class QBrush;
 class QWSWindow;
 class QWSWindowSurface;
+class QGraphicsSystem;
 class QPixmapData;
 
 #ifndef QT_QWS_DEPTH16_RGB
@@ -120,7 +130,7 @@ const int SourcePixmap=1;
 
 class QScreenCursor;
 extern QScreenCursor *qt_screencursor;
-extern bool qt_sw_cursor;
+extern bool qws_sw_cursor;
 
 class Q_GUI_EXPORT QScreenCursor
 {
@@ -135,7 +145,7 @@ public:
 
     bool supportsAlphaCursor() const { return supportsAlpha; }
 
-    static bool enabled() { return qt_sw_cursor; }
+    static bool enabled() { return qws_sw_cursor; }
 
     QRect boundingRect() const { return QRect(pos - hotspot, size); }
     QImage image() const { return cursor; }
@@ -161,8 +171,6 @@ private:
 
 #endif // QT_NO_QWS_CURSOR
 
-struct fb_cmap;
-
 // A (used) chunk of offscreen memory
 
 class QPoolEntry
@@ -177,7 +185,7 @@ class QScreen;
 class QScreenPrivate;
 class QPixmapDataFactory;
 
-extern QScreen *qt_screen;
+extern Q_GUI_EXPORT QScreen *qt_screen;
 typedef void(*ClearCacheFunc)(QScreen *obj, int);
 
 class Q_GUI_EXPORT QScreen {
@@ -185,7 +193,7 @@ class Q_GUI_EXPORT QScreen {
 public:
     enum ClassId { LinuxFBClass, TransformedClass, VNCClass, MultiClass,
                    VFbClass, DirectFBClass, SvgalibClass, ProxyClass,
-                   GLClass, CustomClass = 1024 };
+                   GLClass, IntfbClass, CustomClass = 1024 };
 
     QScreen(int display_id, ClassId classId);
     explicit QScreen(int display_id);
@@ -235,7 +243,10 @@ public:
     int totalSize() const { return mapsize; }
 
     QRgb * clut() { return screenclut; }
-    int numCols() { return screencols; }
+#ifdef QT_DEPRECATED
+    QT_DEPRECATED int numCols() { return screencols; }
+#endif
+    int colorCount() { return screencols; }
 
     virtual QSize mapToDevice(const QSize &) const;
     virtual QSize mapFromDevice(const QSize &) const;
@@ -279,7 +290,8 @@ public:
     int physicalWidth() const { return physWidth; }   // physical display size in mm
     int physicalHeight() const { return physHeight; } // physical display size in mm
 
-    QPixmapDataFactory* pixmapDataFactory() const;
+    QPixmapDataFactory* pixmapDataFactory() const; // Deprecated, will be removed in 4.6
+    QGraphicsSystem* graphicsSystem() const;
 
 #ifdef QT_QWS_CLIENTBLIT
     bool supportsBlitInClients() const;
@@ -290,7 +302,8 @@ public:
 
 protected:
     void setPixelFormat(QImage::Format format);
-    void setPixmapDataFactory(QPixmapDataFactory *factory);
+    void setPixmapDataFactory(QPixmapDataFactory *factory); // Deprecated, will be removed in 4.6
+    void setGraphicsSystem(QGraphicsSystem* system);
 
     QRgb screenclut[256];
     int screencols;
@@ -343,7 +356,10 @@ private:
     bool frameBufferLittleEndian() const;
     friend class QVNCScreen;
     friend class QLinuxFbScreen;
+    friend class QVFbScreen;
+    friend class QQnxScreen;
     friend class QProxyScreen;
+    friend class QIntfbScreen;
 #endif
     friend void qt_solidFill_setup(QScreen*, const QColor&, const QRegion&);
     friend void qt_blit_setup(QScreen *screen, const QImage &image,

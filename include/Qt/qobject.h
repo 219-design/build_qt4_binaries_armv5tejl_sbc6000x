@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -47,6 +51,7 @@
 #ifdef QT_INCLUDE_COMPAT
 #include <QtCore/qcoreevent.h>
 #endif
+#include <QtCore/qscopedpointer.h>
 
 QT_BEGIN_HEADER
 
@@ -72,21 +77,15 @@ class QObjectUserData;
 
 typedef QList<QObject*> QObjectList;
 
-#if defined Q_CC_MSVC && _MSC_VER < 1300
-template<typename T> inline T qFindChild(const QObject *o, const QString &name = QString(), T = 0);
-template<typename T> inline QList<T> qFindChildren(const QObject *o, const QString &name = QString(), T = 0);
-# ifndef QT_NO_REGEXP
-template<typename T> inline QList<T> qFindChildren(const QObject *o, const QRegExp &re, T = 0);
-# endif
-#else
-template<typename T> inline T qFindChild(const QObject *, const QString & = QString());
-template<typename T> inline QList<T> qFindChildren(const QObject *, const QString & = QString());
-# ifndef QT_NO_REGEXP
-template<typename T> inline QList<T> qFindChildren(const QObject *, const QRegExp &);
-# endif
-#endif
+Q_CORE_EXPORT void qt_qFindChildren_helper(const QObject *parent, const QString &name, const QRegExp *re,
+                                           const QMetaObject &mo, QList<void *> *list);
+Q_CORE_EXPORT QObject *qt_qFindChild_helper(const QObject *parent, const QString &name, const QMetaObject &mo);
 
-class QObjectData {
+class
+#if defined(__INTEL_COMPILER) && defined(Q_OS_WIN)
+Q_CORE_EXPORT
+#endif
+QObjectData {
 public:
     virtual ~QObjectData() = 0;
     QObject *q_ptr;
@@ -100,9 +99,12 @@ public:
     uint ownObjectName : 1;
     uint sendChildEvents : 1;
     uint receiveChildEvents : 1;
-    uint inEventHandler : 1;
-    uint unused : 24;
+    uint inEventHandler : 1; //only used if QT_JAMBI_BUILD
+    uint inThreadChangeEvent : 1;
+    uint hasGuards : 1; //true iff there is one or more QPointer attached to this object
+    uint unused : 22;
     int postedEvents;
+    QMetaObject *metaObject; // assert dynamic
 };
 
 
@@ -113,7 +115,7 @@ class Q_CORE_EXPORT QObject
     Q_DECLARE_PRIVATE(QObject)
 
 public:
-    explicit QObject(QObject *parent=0);
+    Q_INVOKABLE explicit QObject(QObject *parent=0);
     virtual ~QObject();
 
     virtual bool event(QEvent *);
@@ -152,20 +154,36 @@ public:
     int startTimer(int interval);
     void killTimer(int id);
 
-#ifndef QT_NO_MEMBER_TEMPLATES
     template<typename T>
     inline T findChild(const QString &aName = QString()) const
-    { return qFindChild<T>(this, aName); }
+    { return static_cast<T>(qt_qFindChild_helper(this, aName, reinterpret_cast<T>(0)->staticMetaObject)); }
 
     template<typename T>
     inline QList<T> findChildren(const QString &aName = QString()) const
-    { return qFindChildren<T>(this, aName); }
+    {
+        QList<T> list;
+        union {
+            QList<T> *typedList;
+            QList<void *> *voidList;
+        } u;
+        u.typedList = &list;
+        qt_qFindChildren_helper(this, aName, 0, reinterpret_cast<T>(0)->staticMetaObject, u.voidList);
+        return list;
+    }
 
 #ifndef QT_NO_REGEXP
     template<typename T>
     inline QList<T> findChildren(const QRegExp &re) const
-    { return qFindChildren<T>(this, re); }
-#endif
+    {
+        QList<T> list;
+        union {
+            QList<T> *typedList;
+            QList<void *> *voidList;
+        } u;
+        u.typedList = &list;
+        qt_qFindChildren_helper(this, QString(), &re, reinterpret_cast<T>(0)->staticMetaObject, u.voidList);
+        return list;
+    }
 #endif
 
 #ifdef QT3_SUPPORT
@@ -195,6 +213,21 @@ public:
 #endif
 #endif
         );
+        
+    static bool connect(const QObject *sender, const QMetaMethod &signal,
+                        const QObject *receiver, const QMetaMethod &method,
+                        Qt::ConnectionType type = 
+#ifdef qdoc
+                        Qt::AutoConnection
+#else
+#ifdef QT3_SUPPORT
+                        Qt::AutoCompatConnection
+#else
+                        Qt::AutoConnection
+#endif
+#endif
+        );
+
     inline bool connect(const QObject *sender, const char *signal,
                         const char *member, Qt::ConnectionType type =
 #ifdef qdoc
@@ -210,6 +243,8 @@ public:
 
     static bool disconnect(const QObject *sender, const char *signal,
                            const QObject *receiver, const char *member);
+    static bool disconnect(const QObject *sender, const QMetaMethod &signal,
+                           const QObject *receiver, const QMetaMethod &member);
     inline bool disconnect(const char *signal = 0,
                            const QObject *receiver = 0, const char *member = 0)
         { return disconnect(this, signal, receiver, member); }
@@ -245,6 +280,7 @@ public Q_SLOTS:
 
 protected:
     QObject *sender() const;
+    int senderSignalIndex() const;
     int receivers(const char* signal) const;
 
     virtual void timerEvent(QTimerEvent *);
@@ -281,7 +317,7 @@ protected:
     QObject(QObjectPrivate &dd, QObject *parent = 0);
 
 protected:
-    QObjectData *d_ptr;
+    QScopedPointer<QObjectData> d_ptr;
 
     static const QMetaObject staticQtMetaObject;
 
@@ -309,154 +345,63 @@ public:
 };
 #endif
 
-Q_CORE_EXPORT void qt_qFindChildren_helper(const QObject *parent, const QString &name, const QRegExp *re,
-                                           const QMetaObject &mo, QList<void *> *list);
-Q_CORE_EXPORT QObject *qt_qFindChild_helper(const QObject *parent, const QString &name, const QMetaObject &mo);
-
-#if defined Q_CC_MSVC && _MSC_VER < 1300
-
-template<typename T>
-inline T qFindChild(const QObject *o, const QString &name, T)
-{ return static_cast<T>(qt_qFindChild_helper(o, name, ((T)0)->staticMetaObject)); }
-
-template<typename T>
-inline QList<T> qFindChildren(const QObject *o, const QString &name, T)
-{
-    QList<T> list;
-    union {
-        QList<T> *typedList;
-        QList<void *> *voidList;
-    } u;
-    u.typedList = &list;
-    qt_qFindChildren_helper(o, name, 0, ((T)0)->staticMetaObject, u.voidList);
-    return list;
-}
-
-template<typename T>
-inline T qFindChild(const QObject *o, const QString &name)
-{ return qFindChild<T>(o, name, T(0)); }
-
-template<typename T>
-inline T qFindChild(const QObject *o)
-{ return qFindChild<T>(o, QString(), T(0)); }
-
-template<typename T>
-inline QList<T> qFindChildren(const QObject *o, const QString &name)
-{ return qFindChildren<T>(o, name, T(0)); }
-
-template<typename T>
-inline QList<T> qFindChildren(const QObject *o)
-{ return qFindChildren<T>(o, QString(), T(0)); }
-
-#ifndef QT_NO_REGEXP
-template<typename T>
-inline QList<T> qFindChildren(const QObject *o, const QRegExp &re, T)
-{
-    QList<T> list;
-    union {
-        QList<T> *typedList;
-        QList<void *> *voidList;
-    } u;
-    u.typedList = &list;
-    qt_qFindChildren_helper(o, 0, &re, ((T)0)->staticMetaObject, u.voidList);
-    return list;
-}
-
-template<typename T>
-inline QList<T> qFindChildren(const QObject *o, const QRegExp &re)
-{ return qFindChildren<T>(o, re, T(0)); }
-
+#ifdef qdoc
+T qFindChild(const QObject *o, const QString &name = QString());
+QList<T> qFindChildren(const QObject *oobj, const QString &name = QString());
+QList<T> qFindChildren(const QObject *o, const QRegExp &re);
 #endif
-
-#ifdef Q_MOC_RUN
-# define Q_DECLARE_INTERFACE(IFace, IId) Q_DECLARE_INTERFACE(IFace, IId)
-#endif // Q_MOC_RUN
-
-
-template <class T> inline T qobject_cast_helper(QObject *object, T)
-{ return static_cast<T>(((T)0)->staticMetaObject.cast(object)); }
-
-template <class T> inline T qobject_cast_helper(const QObject *object, T)
-{ return static_cast<T>(const_cast<const QObject *>(((T)0)->staticMetaObject.cast(const_cast<QObject *>(object)))); }
-
-template <class T>
-inline T qobject_cast(QObject *object)
-{ return qobject_cast_helper<T>(object, T(0)); }
-
-template <class T>
-inline T qobject_cast(const QObject *object)
-{ return qobject_cast_helper<T>(object, T(0)); }
-
-#ifndef Q_MOC_RUN
-#  define Q_DECLARE_INTERFACE(IFace, IId) \
-    template <> inline IFace *qobject_cast_helper<IFace *>(QObject *object, IFace *) \
-    { return (IFace *)(object ? object->qt_metacast(IId) : 0); } \
-    template <> inline IFace *qobject_cast_helper<IFace *>(const QObject *object, IFace *) \
-    { return (IFace *)(object ? const_cast<QObject *>(object)->qt_metacast(IId) : 0); }
-#endif // Q_MOC_RUN
-
-#else
+#ifdef QT_DEPRECATED
+template<typename T>
+inline QT_DEPRECATED T qFindChild(const QObject *o, const QString &name = QString())
+{ return o->findChild<T>(name); }
 
 template<typename T>
-inline T qFindChild(const QObject *o, const QString &name)
-{ return static_cast<T>(qt_qFindChild_helper(o, name, reinterpret_cast<T>(0)->staticMetaObject)); }
-
-template<typename T>
-inline QList<T> qFindChildren(const QObject *o, const QString &name)
+inline QT_DEPRECATED QList<T> qFindChildren(const QObject *o, const QString &name = QString())
 {
-    QList<T> list;
-    union {
-        QList<T> *typedList;
-        QList<void *> *voidList;
-    } u;
-    u.typedList = &list;
-    qt_qFindChildren_helper(o, name, 0, reinterpret_cast<T>(0)->staticMetaObject, u.voidList);
-    return list;
+    return o->findChildren<T>(name);
 }
 
 #ifndef QT_NO_REGEXP
 template<typename T>
-inline QList<T> qFindChildren(const QObject *o, const QRegExp &re)
+inline QT_DEPRECATED QList<T> qFindChildren(const QObject *o, const QRegExp &re)
 {
-    QList<T> list;
-    union {
-        QList<T> *typedList;
-        QList<void *> *voidList;
-    } u;
-    u.typedList = &list;
-    qt_qFindChildren_helper(o, QString(), &re, reinterpret_cast<T>(0)->staticMetaObject, u.voidList);
-    return list;
+    return o->findChildren<T>(re);
 }
 #endif
+
+#endif //QT_DEPRECATED
 
 template <class T>
 inline T qobject_cast(QObject *object)
 {
-#if !defined(QT_NO_MEMBER_TEMPLATES) && !defined(QT_NO_QOBJECT_CHECK)
-    reinterpret_cast<T>(0)->qt_check_for_QOBJECT_macro(*reinterpret_cast<T>(object));
+#if !defined(QT_NO_QOBJECT_CHECK)
+    reinterpret_cast<T>(object)->qt_check_for_QOBJECT_macro(*reinterpret_cast<T>(object));
 #endif
-    return static_cast<T>(reinterpret_cast<T>(0)->staticMetaObject.cast(object));
+    return static_cast<T>(reinterpret_cast<T>(object)->staticMetaObject.cast(object));
 }
 
 template <class T>
 inline T qobject_cast(const QObject *object)
 {
-#if !defined(QT_NO_MEMBER_TEMPLATES) && !defined(QT_NO_QOBJECT_CHECK)
-    reinterpret_cast<T>(0)->qt_check_for_QOBJECT_macro(*reinterpret_cast<T>(object));
+#if !defined(QT_NO_QOBJECT_CHECK)
+    reinterpret_cast<T>(object)->qt_check_for_QOBJECT_macro(*reinterpret_cast<T>(const_cast<QObject *>(object)));
 #endif
-    return static_cast<T>(const_cast<const QObject *>(reinterpret_cast<T>(0)->staticMetaObject.cast(const_cast<QObject *>(object))));
+    return static_cast<T>(reinterpret_cast<T>(object)->staticMetaObject.cast(object));
 }
 
 
+template <class T> inline const char * qobject_interface_iid()
+{ return 0; }
+
 #ifndef Q_MOC_RUN
 #  define Q_DECLARE_INTERFACE(IFace, IId) \
+    template <> inline const char *qobject_interface_iid<IFace *>() \
+    { return IId; } \
     template <> inline IFace *qobject_cast<IFace *>(QObject *object) \
     { return reinterpret_cast<IFace *>((object ? object->qt_metacast(IId) : 0)); } \
     template <> inline IFace *qobject_cast<IFace *>(const QObject *object) \
     { return reinterpret_cast<IFace *>((object ? const_cast<QObject *>(object)->qt_metacast(IId) : 0)); }
 #endif // Q_MOC_RUN
-
-#endif
 
 #ifndef QT_NO_DEBUG_STREAM
 Q_CORE_EXPORT QDebug operator<<(QDebug, const QObject *);

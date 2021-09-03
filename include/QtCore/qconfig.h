@@ -5,11 +5,11 @@
 #  define QT_EDITION QT_EDITION_OPENSOURCE
 #endif
 
-#define QT_BUILD_KEY "arm linux g++-3.* full-config"
-
 /* Machine byte-order */
 #define Q_BIG_ENDIAN 4321
 #define Q_LITTLE_ENDIAN 1234
+#define QT_BUILD_KEY "arm linux g++-3.* no-pkg-config"
+#define QT_BUILD_KEY_COMPAT3 "armv6 linux g++-3.* no-pkg-config"
 
 #ifdef QT_BOOTSTRAPPED
 #define Q_BYTE_ORDER Q_LITTLE_ENDIAN
@@ -35,10 +35,12 @@
 #define QT_LARGEFILE_SUPPORT 64
 #define QT_POINTER_SIZE 4
 
-#if defined(QT_BUILTIN_GIF_READER) && defined(QT_NO_BUILTIN_GIF_READER)
-# undef QT_BUILTIN_GIF_READER
-#elif !defined(QT_BUILTIN_GIF_READER) && !defined(QT_NO_BUILTIN_GIF_READER)
-# define QT_BUILTIN_GIF_READER 1
+#ifndef QT_BOOTSTRAPPED
+
+#if defined(QT_NO_ALSA) && defined(QT_ALSA)
+# undef QT_NO_ALSA
+#elif !defined(QT_NO_ALSA) && !defined(QT_ALSA)
+# define QT_NO_ALSA
 #endif
 
 #if defined(QT_NO_CUPS) && defined(QT_CUPS)
@@ -59,10 +61,28 @@
 # define QT_NO_DBUS
 #endif
 
+#if defined(QT_NO_DECLARATIVE) && defined(QT_DECLARATIVE)
+# undef QT_NO_DECLARATIVE
+#elif !defined(QT_NO_DECLARATIVE) && !defined(QT_DECLARATIVE)
+# define QT_NO_DECLARATIVE
+#endif
+
+#if defined(QT_NO_EGL) && defined(QT_EGL)
+# undef QT_NO_EGL
+#elif !defined(QT_NO_EGL) && !defined(QT_EGL)
+# define QT_NO_EGL
+#endif
+
 #if defined(QT_NO_EXCEPTIONS) && defined(QT_EXCEPTIONS)
 # undef QT_NO_EXCEPTIONS
 #elif !defined(QT_NO_EXCEPTIONS) && !defined(QT_EXCEPTIONS)
 # define QT_NO_EXCEPTIONS
+#endif
+
+#if defined(QT_NO_FREETYPE) && defined(QT_FREETYPE)
+# undef QT_NO_FREETYPE
+#elif !defined(QT_NO_FREETYPE) && !defined(QT_FREETYPE)
+# define QT_NO_FREETYPE
 #endif
 
 #if defined(QT_NO_GLIB) && defined(QT_GLIB)
@@ -75,6 +95,12 @@
 # undef QT_NO_GSTREAMER
 #elif !defined(QT_NO_GSTREAMER) && !defined(QT_GSTREAMER)
 # define QT_NO_GSTREAMER
+#endif
+
+#if defined(QT_NO_ICD) && defined(QT_ICD)
+# undef QT_NO_ICD
+#elif !defined(QT_NO_ICD) && !defined(QT_ICD)
+# define QT_NO_ICD
 #endif
 
 #if defined(QT_NO_ICONV) && defined(QT_ICONV)
@@ -113,12 +139,6 @@
 # define QT_NO_NAS
 #endif
 
-#if defined(QT_NO_NIS) && defined(QT_NIS)
-# undef QT_NO_NIS
-#elif !defined(QT_NO_NIS) && !defined(QT_NIS)
-# define QT_NO_NIS
-#endif
-
 #if defined(QT_NO_OPENGL) && defined(QT_OPENGL)
 # undef QT_NO_OPENGL
 #elif !defined(QT_NO_OPENGL) && !defined(QT_OPENGL)
@@ -131,10 +151,52 @@
 # define QT_NO_OPENSSL
 #endif
 
+#if defined(QT_NO_OPENVG) && defined(QT_OPENVG)
+# undef QT_NO_OPENVG
+#elif !defined(QT_NO_OPENVG) && !defined(QT_OPENVG)
+# define QT_NO_OPENVG
+#endif
+
 #if defined(QT_NO_PHONON) && defined(QT_PHONON)
 # undef QT_NO_PHONON
 #elif !defined(QT_NO_PHONON) && !defined(QT_PHONON)
 # define QT_NO_PHONON
+#endif
+
+#if defined(QT_NO_PULSEAUDIO) && defined(QT_PULSEAUDIO)
+# undef QT_NO_PULSEAUDIO
+#elif !defined(QT_NO_PULSEAUDIO) && !defined(QT_PULSEAUDIO)
+# define QT_NO_PULSEAUDIO
+#endif
+
+#if defined(QT_NO_QWS_DIRECTFB) && defined(QT_QWS_DIRECTFB)
+# undef QT_NO_QWS_DIRECTFB
+#elif !defined(QT_NO_QWS_DIRECTFB) && !defined(QT_QWS_DIRECTFB)
+# define QT_NO_QWS_DIRECTFB
+#endif
+
+#if defined(QT_NO_QWS_INTEGRITYFB) && defined(QT_QWS_INTEGRITYFB)
+# undef QT_NO_QWS_INTEGRITYFB
+#elif !defined(QT_NO_QWS_INTEGRITYFB) && !defined(QT_QWS_INTEGRITYFB)
+# define QT_NO_QWS_INTEGRITYFB
+#endif
+
+#if defined(QT_NO_QWS_KBD_INTEGRITY) && defined(QT_QWS_KBD_INTEGRITY)
+# undef QT_NO_QWS_KBD_INTEGRITY
+#elif !defined(QT_NO_QWS_KBD_INTEGRITY) && !defined(QT_QWS_KBD_INTEGRITY)
+# define QT_NO_QWS_KBD_INTEGRITY
+#endif
+
+#if defined(QT_NO_QWS_KBD_LINUXINPUT) && defined(QT_QWS_KBD_LINUXINPUT)
+# undef QT_NO_QWS_KBD_LINUXINPUT
+#elif !defined(QT_NO_QWS_KBD_LINUXINPUT) && !defined(QT_QWS_KBD_LINUXINPUT)
+# define QT_NO_QWS_KBD_LINUXINPUT
+#endif
+
+#if defined(QT_NO_QWS_KBD_QNX) && defined(QT_QWS_KBD_QNX)
+# undef QT_NO_QWS_KBD_QNX
+#elif !defined(QT_NO_QWS_KBD_QNX) && !defined(QT_QWS_KBD_QNX)
+# define QT_NO_QWS_KBD_QNX
 #endif
 
 #if defined(QT_NO_QWS_KBD_QVFB) && defined(QT_QWS_KBD_QVFB)
@@ -143,40 +205,28 @@
 # define QT_NO_QWS_KBD_QVFB
 #endif
 
-#if defined(QT_NO_QWS_KBD_SL5000) && defined(QT_QWS_KBD_SL5000)
-# undef QT_NO_QWS_KBD_SL5000
-#elif !defined(QT_NO_QWS_KBD_SL5000) && !defined(QT_QWS_KBD_SL5000)
-# define QT_NO_QWS_KBD_SL5000
-#endif
-
 #if defined(QT_NO_QWS_KBD_UM) && defined(QT_QWS_KBD_UM)
 # undef QT_NO_QWS_KBD_UM
 #elif !defined(QT_NO_QWS_KBD_UM) && !defined(QT_QWS_KBD_UM)
 # define QT_NO_QWS_KBD_UM
 #endif
 
-#if defined(QT_NO_QWS_KBD_USB) && defined(QT_QWS_KBD_USB)
-# undef QT_NO_QWS_KBD_USB
-#elif !defined(QT_NO_QWS_KBD_USB) && !defined(QT_QWS_KBD_USB)
-# define QT_NO_QWS_KBD_USB
+#if defined(QT_NO_QWS_MOUSE_INTEGRITY) && defined(QT_QWS_MOUSE_INTEGRITY)
+# undef QT_NO_QWS_MOUSE_INTEGRITY
+#elif !defined(QT_NO_QWS_MOUSE_INTEGRITY) && !defined(QT_QWS_MOUSE_INTEGRITY)
+# define QT_NO_QWS_MOUSE_INTEGRITY
 #endif
 
-#if defined(QT_NO_QWS_KBD_VR41XX) && defined(QT_QWS_KBD_VR41XX)
-# undef QT_NO_QWS_KBD_VR41XX
-#elif !defined(QT_NO_QWS_KBD_VR41XX) && !defined(QT_QWS_KBD_VR41XX)
-# define QT_NO_QWS_KBD_VR41XX
+#if defined(QT_NO_QWS_MOUSE_LINUXINPUT) && defined(QT_QWS_MOUSE_LINUXINPUT)
+# undef QT_NO_QWS_MOUSE_LINUXINPUT
+#elif !defined(QT_NO_QWS_MOUSE_LINUXINPUT) && !defined(QT_QWS_MOUSE_LINUXINPUT)
+# define QT_NO_QWS_MOUSE_LINUXINPUT
 #endif
 
-#if defined(QT_NO_QWS_KBD_YOPY) && defined(QT_QWS_KBD_YOPY)
-# undef QT_NO_QWS_KBD_YOPY
-#elif !defined(QT_NO_QWS_KBD_YOPY) && !defined(QT_QWS_KBD_YOPY)
-# define QT_NO_QWS_KBD_YOPY
-#endif
-
-#if defined(QT_NO_QWS_MOUSE_BUS) && defined(QT_QWS_MOUSE_BUS)
-# undef QT_NO_QWS_MOUSE_BUS
-#elif !defined(QT_NO_QWS_MOUSE_BUS) && !defined(QT_QWS_MOUSE_BUS)
-# define QT_NO_QWS_MOUSE_BUS
+#if defined(QT_NO_QWS_MOUSE_QNX) && defined(QT_QWS_MOUSE_QNX)
+# undef QT_NO_QWS_MOUSE_QNX
+#elif !defined(QT_NO_QWS_MOUSE_QNX) && !defined(QT_QWS_MOUSE_QNX)
+# define QT_NO_QWS_MOUSE_QNX
 #endif
 
 #if defined(QT_NO_QWS_MOUSE_QVFB) && defined(QT_QWS_MOUSE_QVFB)
@@ -185,16 +235,10 @@
 # define QT_NO_QWS_MOUSE_QVFB
 #endif
 
-#if defined(QT_NO_QWS_MOUSE_VR41XX) && defined(QT_QWS_MOUSE_VR41XX)
-# undef QT_NO_QWS_MOUSE_VR41XX
-#elif !defined(QT_NO_QWS_MOUSE_VR41XX) && !defined(QT_QWS_MOUSE_VR41XX)
-# define QT_NO_QWS_MOUSE_VR41XX
-#endif
-
-#if defined(QT_NO_QWS_MOUSE_YOPY) && defined(QT_QWS_MOUSE_YOPY)
-# undef QT_NO_QWS_MOUSE_YOPY
-#elif !defined(QT_NO_QWS_MOUSE_YOPY) && !defined(QT_QWS_MOUSE_YOPY)
-# define QT_NO_QWS_MOUSE_YOPY
+#if defined(QT_NO_QWS_QNX) && defined(QT_QWS_QNX)
+# undef QT_NO_QWS_QNX
+#elif !defined(QT_NO_QWS_QNX) && !defined(QT_QWS_QNX)
+# define QT_NO_QWS_QNX
 #endif
 
 #if defined(QT_NO_QWS_QVFB) && defined(QT_QWS_QVFB)
@@ -209,10 +253,40 @@
 # define QT_NO_QWS_VNC
 #endif
 
+#if defined(QT_NO_S60) && defined(QT_S60)
+# undef QT_NO_S60
+#elif !defined(QT_NO_S60) && !defined(QT_S60)
+# define QT_NO_S60
+#endif
+
+#if defined(QT_NO_SCRIPT) && defined(QT_SCRIPT)
+# undef QT_NO_SCRIPT
+#elif !defined(QT_NO_SCRIPT) && !defined(QT_SCRIPT)
+# define QT_NO_SCRIPT
+#endif
+
+#if defined(QT_NO_SCRIPTTOOLS) && defined(QT_SCRIPTTOOLS)
+# undef QT_NO_SCRIPTTOOLS
+#elif !defined(QT_NO_SCRIPTTOOLS) && !defined(QT_SCRIPTTOOLS)
+# define QT_NO_SCRIPTTOOLS
+#endif
+
 #if defined(QT_NO_SESSIONMANAGER) && defined(QT_SESSIONMANAGER)
 # undef QT_NO_SESSIONMANAGER
 #elif !defined(QT_NO_SESSIONMANAGER) && !defined(QT_SESSIONMANAGER)
 # define QT_NO_SESSIONMANAGER
+#endif
+
+#if defined(QT_NO_STYLE_GTK) && defined(QT_STYLE_GTK)
+# undef QT_NO_STYLE_GTK
+#elif !defined(QT_NO_STYLE_GTK) && !defined(QT_STYLE_GTK)
+# define QT_NO_STYLE_GTK
+#endif
+
+#if defined(QT_NO_STYLE_S60) && defined(QT_STYLE_S60)
+# undef QT_NO_STYLE_S60
+#elif !defined(QT_NO_STYLE_S60) && !defined(QT_STYLE_S60)
+# define QT_NO_STYLE_S60
 #endif
 
 #if defined(QT_NO_SXE) && defined(QT_SXE)
@@ -311,6 +385,18 @@
 # define QT_RUNTIME_XINERAMA
 #endif
 
+#if defined(QT_RUNTIME_XINPUT) && defined(QT_NO_RUNTIME_XINPUT)
+# undef QT_RUNTIME_XINPUT
+#elif !defined(QT_RUNTIME_XINPUT) && !defined(QT_NO_RUNTIME_XINPUT)
+# define QT_RUNTIME_XINPUT
+#endif
+
+#if defined(QT_RUNTIME_XRANDR) && defined(QT_NO_RUNTIME_XRANDR)
+# undef QT_RUNTIME_XRANDR
+#elif !defined(QT_RUNTIME_XRANDR) && !defined(QT_NO_RUNTIME_XRANDR)
+# define QT_RUNTIME_XRANDR
+#endif
+
 #if defined(QT_USE_MATH_H_FLOATS) && defined(QT_NO_USE_MATH_H_FLOATS)
 # undef QT_USE_MATH_H_FLOATS
 #elif !defined(QT_USE_MATH_H_FLOATS) && !defined(QT_NO_USE_MATH_H_FLOATS)
@@ -320,4 +406,6 @@
 #ifndef Q_WS_QWS
 # define Q_WS_QWS
 #endif
+
+#endif // QT_BOOTSTRAPPED
 

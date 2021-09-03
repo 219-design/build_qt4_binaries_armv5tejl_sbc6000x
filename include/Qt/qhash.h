@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -48,7 +52,6 @@ QT_BEGIN_HEADER
 
 QT_BEGIN_NAMESPACE
 
-#undef QT_QHASH_DEBUG
 QT_MODULE(Core)
 
 class QBitArray;
@@ -66,18 +69,18 @@ inline uint qHash(int key) { return uint(key); }
 inline uint qHash(ulong key)
 {
     if (sizeof(ulong) > sizeof(uint)) {
-        return uint((key >> (8 * sizeof(uint) - 1)) ^ key);
+        return uint(((key >> (8 * sizeof(uint) - 1)) ^ key) & (~0U));
     } else {
-        return uint(key);
+        return uint(key & (~0U));
     }
 }
 inline uint qHash(long key) { return qHash(ulong(key)); }
 inline uint qHash(quint64 key)
 {
     if (sizeof(quint64) > sizeof(uint)) {
-        return uint((key >> (8 * sizeof(uint) - 1)) ^ key);
+        return uint(((key >> (8 * sizeof(uint) - 1)) ^ key) & (~0U));
     } else {
-        return uint(key);
+        return uint(key & (~0U));
     }
 }
 inline uint qHash(qint64 key) { return qHash(quint64(key)); }
@@ -93,10 +96,7 @@ Q_CORE_EXPORT uint qHash(const QBitArray &key);
 #endif
 template <class T> inline uint qHash(const T *key)
 {
-    if (sizeof(const T *) > sizeof(uint))
-        return qHash(reinterpret_cast<quint64>(key));
-    else
-        return uint(reinterpret_cast<ulong>(key));
+    return qHash(reinterpret_cast<quintptr>(key));
 }
 #if defined(Q_CC_MSVC)
 #pragma warning( pop )
@@ -125,15 +125,21 @@ struct Q_CORE_EXPORT QHashData
     short numBits;
     int numBuckets;
     uint sharable : 1;
+    uint strictAlignment : 1;
+    uint reserved : 30;
 
-    void *allocateNode();
+    void *allocateNode(); // ### Qt5 remove me
+    void *allocateNode(int nodeAlign);
     void freeNode(void *node);
-    QHashData *detach_helper(void (*node_duplicate)(Node *, void *), int nodeSize);
+    QHashData *detach_helper(void (*node_duplicate)(Node *, void *), int nodeSize); // ### Qt5 remove me
+    QHashData *detach_helper2(void (*node_duplicate)(Node *, void *), void (*node_delete)(Node *),
+                              int nodeSize, int nodeAlign);
     void mightGrow();
     bool willGrow();
     void hasShrunk();
     void rehash(int hint);
-    void destroyAndFree();
+    void free_helper(void (*node_delete)(Node *));
+    void destroyAndFree(); // ### Qt5 remove me
     Node *firstNode();
 #ifdef QT_QHASH_DEBUG
     void dump();
@@ -146,10 +152,10 @@ struct Q_CORE_EXPORT QHashData
 };
 
 inline void QHashData::mightGrow() // ### Qt 5: eliminate
-{ 
+{
     if (size >= numBuckets)
         rehash(numBits + 1);
-}  
+}
 
 inline bool QHashData::willGrow()
 {
@@ -163,8 +169,13 @@ inline bool QHashData::willGrow()
 
 inline void QHashData::hasShrunk()
 {
-    if (size <= (numBuckets >> 3) && numBits > userNumBits)
-        rehash(qMax(int(numBits) - 2, int(userNumBits)));
+    if (size <= (numBuckets >> 3) && numBits > userNumBits) {
+        QT_TRY {
+            rehash(qMax(int(numBits) - 2, int(userNumBits)));
+        } QT_CATCH(const std::bad_alloc &) {
+            // ignore bad allocs - shrinking shouldn't throw. rehash is exception safe.
+        }
+    }
 }
 
 inline QHashData::Node *QHashData::firstNode()
@@ -214,7 +225,7 @@ struct QHashNode
     inline bool same_key(uint h0, const Key &key0) { return h0 == h && key0 == key; }
 };
 
-#ifndef QT_NO_PARTIAL_TEMPLATE_SPECIALIZATION
+
 #define Q_HASH_DECLARE_INT_NODES(key_type) \
     template <class T> \
     struct QHashDummyNode<key_type, T> { \
@@ -242,7 +253,6 @@ Q_HASH_DECLARE_INT_NODES(ushort);
 Q_HASH_DECLARE_INT_NODES(int);
 Q_HASH_DECLARE_INT_NODES(uint);
 #undef Q_HASH_DECLARE_INT_NODES
-#endif // QT_NO_PARTIAL_TEMPLATE_SPECIALIZATION
 
 template <class Key, class T>
 class QHash
@@ -259,12 +269,25 @@ class QHash
         return reinterpret_cast<Node *>(node);
     }
 
+#ifdef Q_ALIGNOF
+    static inline int alignOfNode() { return qMax<int>(sizeof(void*), Q_ALIGNOF(Node)); }
+    static inline int alignOfDummyNode() { return qMax<int>(sizeof(void*), Q_ALIGNOF(DummyNode)); }
+#else
+    static inline int alignOfNode() { return 0; }
+    static inline int alignOfDummyNode() { return 0; }
+#endif
+
 public:
     inline QHash() : d(&QHashData::shared_null) { d->ref.ref(); }
     inline QHash(const QHash<Key, T> &other) : d(other.d) { d->ref.ref(); if (!d->sharable) detach(); }
     inline ~QHash() { if (!d->ref.deref()) freeData(d); }
 
     QHash<Key, T> &operator=(const QHash<Key, T> &other);
+#ifdef Q_COMPILER_RVALUE_REFS
+    inline QHash<Key, T> &operator=(QHash<Key, T> &&other)
+    { qSwap(d, other.d); return *this; }
+#endif
+    inline void swap(QHash<Key, T> &other) { qSwap(d, other.d); }
 
     bool operator==(const QHash<Key, T> &other) const;
     inline bool operator!=(const QHash<Key, T> &other) const { return !(*this == other); }
@@ -280,6 +303,7 @@ public:
     inline void detach() { if (d->ref != 1) detach_helper(); }
     inline bool isDetached() const { return d->ref == 1; }
     inline void setSharable(bool sharable) { if (!sharable) detach(); d->sharable = sharable; }
+    inline bool isSharedWith(const QHash<Key, T> &other) const { return d == other.d; }
 
     void clear();
 
@@ -310,7 +334,7 @@ public:
 
     public:
         typedef std::bidirectional_iterator_tag iterator_category;
-        typedef ptrdiff_t difference_type;
+        typedef qptrdiff difference_type;
         typedef T value_type;
         typedef T *pointer;
         typedef T &reference;
@@ -375,7 +399,7 @@ public:
 
     public:
         typedef std::bidirectional_iterator_tag iterator_category;
-        typedef ptrdiff_t difference_type;
+        typedef qptrdiff difference_type;
         typedef T value_type;
         typedef const T *pointer;
         typedef const T &reference;
@@ -459,7 +483,7 @@ public:
     // STL compatibility
     typedef T mapped_type;
     typedef Key key_type;
-    typedef ptrdiff_t difference_type;
+    typedef qptrdiff difference_type;
     typedef int size_type;
 
     inline bool empty() const { return isEmpty(); }
@@ -475,21 +499,27 @@ private:
     Node **findNode(const Key &key, uint *hp = 0) const;
     Node *createNode(uint h, const Key &key, const T &value, Node **nextNode);
     void deleteNode(Node *node);
+    static void deleteNode2(QHashData::Node *node);
 
     static void duplicateNode(QHashData::Node *originalNode, void *newNode);
 };
 
+
 template <class Key, class T>
 Q_INLINE_TEMPLATE void QHash<Key, T>::deleteNode(Node *node)
 {
-#ifdef Q_CC_BOR
-    node->~QHashNode<Key, T>();
-#elif defined(QT_NO_PARTIAL_TEMPLATE_SPECIALIZATION)
-    node->~QHashNode();
-#else
-    node->~Node();
-#endif
+    deleteNode2(reinterpret_cast<QHashData::Node*>(node));
     d->freeNode(node);
+}
+
+template <class Key, class T>
+Q_INLINE_TEMPLATE void QHash<Key, T>::deleteNode2(QHashData::Node *node)
+{
+#ifdef Q_CC_BOR
+    concrete(node)->~QHashNode<Key, T>();
+#else
+    concrete(node)->~Node();
+#endif
 }
 
 template <class Key, class T>
@@ -510,9 +540,9 @@ QHash<Key, T>::createNode(uint ah, const Key &akey, const T &avalue, Node **anex
     Node *node;
 
     if (QTypeInfo<T>::isDummy) {
-        node = reinterpret_cast<Node *>(new (d->allocateNode()) DummyNode(akey));
+        node = reinterpret_cast<Node *>(new (d->allocateNode(alignOfDummyNode())) DummyNode(akey));
     } else {
-        node = new (d->allocateNode()) Node(akey, avalue);
+        node = new (d->allocateNode(alignOfNode())) Node(akey, avalue);
     }
 
     node->h = ah;
@@ -537,18 +567,7 @@ Q_INLINE_TEMPLATE QHash<Key, T> &QHash<Key, T>::unite(const QHash<Key, T> &other
 template <class Key, class T>
 Q_OUTOFLINE_TEMPLATE void QHash<Key, T>::freeData(QHashData *x)
 {
-    Node *e_for_x = reinterpret_cast<Node *>(x);
-    Node **bucket = reinterpret_cast<Node **>(x->buckets);
-    int n = x->numBuckets;
-    while (n--) {
-        Node *cur = *bucket++;
-        while (cur != e_for_x) {
-            Node *next = cur->next;
-            deleteNode(cur);
-            cur = next;
-        }
-    }
-    x->destroyAndFree();
+    x->free_helper(deleteNode2);
 }
 
 template <class Key, class T>
@@ -560,8 +579,9 @@ Q_INLINE_TEMPLATE void QHash<Key, T>::clear()
 template <class Key, class T>
 Q_OUTOFLINE_TEMPLATE void QHash<Key, T>::detach_helper()
 {
-    QHashData *x = d->detach_helper(duplicateNode,
-        QTypeInfo<T>::isDummy ? sizeof(DummyNode) : sizeof(Node));
+    QHashData *x = d->detach_helper2(duplicateNode, deleteNode2,
+        QTypeInfo<T>::isDummy ? sizeof(DummyNode) : sizeof(Node),
+        QTypeInfo<T>::isDummy ? alignOfDummyNode() : alignOfNode());
     if (!d->ref.deref())
         freeData(d);
     d = x;
@@ -571,10 +591,11 @@ template <class Key, class T>
 Q_INLINE_TEMPLATE QHash<Key, T> &QHash<Key, T>::operator=(const QHash<Key, T> &other)
 {
     if (d != other.d) {
-        other.d->ref.ref();
+        QHashData *o = other.d;
+        o->ref.ref();
         if (!d->ref.deref())
             freeData(d);
-        d = other.d;
+        d = o;
         if (!d->sharable)
             detach_helper();
     }
@@ -607,6 +628,7 @@ template <class Key, class T>
 Q_OUTOFLINE_TEMPLATE QList<Key> QHash<Key, T>::uniqueKeys() const
 {
     QList<Key> res;
+    res.reserve(size()); // May be too much, but assume short lifetime
     const_iterator i = begin();
     if (i != end()) {
         for (;;) {
@@ -626,6 +648,7 @@ template <class Key, class T>
 Q_OUTOFLINE_TEMPLATE QList<Key> QHash<Key, T>::keys() const
 {
     QList<Key> res;
+    res.reserve(size());
     const_iterator i = begin();
     while (i != end()) {
         res.append(i.key());
@@ -670,6 +693,7 @@ template <class Key, class T>
 Q_OUTOFLINE_TEMPLATE QList<T> QHash<Key, T>::values() const
 {
     QList<T> res;
+    res.reserve(size());
     const_iterator i = begin();
     while (i != end()) {
         res.append(i.value());
@@ -759,6 +783,8 @@ Q_INLINE_TEMPLATE typename QHash<Key, T>::iterator QHash<Key, T>::insertMulti(co
 template <class Key, class T>
 Q_OUTOFLINE_TEMPLATE int QHash<Key, T>::remove(const Key &akey)
 {
+    if (isEmpty()) // prevents detaching shared null
+        return 0;
     detach();
 
     int oldSize = d->size;
@@ -780,6 +806,8 @@ Q_OUTOFLINE_TEMPLATE int QHash<Key, T>::remove(const Key &akey)
 template <class Key, class T>
 Q_OUTOFLINE_TEMPLATE T QHash<Key, T>::take(const Key &akey)
 {
+    if (isEmpty()) // prevents detaching shared null
+        return T();
     detach();
 
     Node **node = findNode(akey);
@@ -898,6 +926,7 @@ class QMultiHash : public QHash<Key, T>
 public:
     QMultiHash() {}
     QMultiHash(const QHash<Key, T> &other) : QHash<Key, T>(other) {}
+    inline void swap(QMultiHash<Key, T> &other) { QHash<Key, T>::swap(other); } // prevent QMultiHash<->QHash swaps
 
     inline typename QHash<Key, T>::iterator replace(const Key &key, const T &value)
     { return QHash<Key, T>::insert(key, value); }
@@ -906,11 +935,12 @@ public:
     { return QHash<Key, T>::insertMulti(key, value); }
 
     inline QMultiHash &operator+=(const QMultiHash &other)
-    { unite(other); return *this; }
+    { this->unite(other); return *this; }
     inline QMultiHash operator+(const QMultiHash &other) const
     { QMultiHash result = *this; result += other; return result; }
 
-#ifndef Q_NO_USING_KEYWORD
+#if !defined(Q_NO_USING_KEYWORD) && !defined(Q_CC_RVCT)
+    // RVCT compiler doesn't handle using-keyword right when used functions are overloaded in child class
     using QHash<Key, T>::contains;
     using QHash<Key, T>::remove;
     using QHash<Key, T>::count;
@@ -977,10 +1007,10 @@ Q_INLINE_TEMPLATE int QMultiHash<Key, T>::remove(const Key &key, const T &value)
 {
     int n = 0;
     typename QHash<Key, T>::iterator i(find(key));
-    typename QHash<Key, T>::const_iterator end(QHash<Key, T>::constEnd());
+    typename QHash<Key, T>::iterator end(QHash<Key, T>::end());
     while (i != end && i.key() == key) {
         if (i.value() == value) {
-            i = erase(i);
+            i = this->erase(i);
             ++n;
         } else {
             ++i;

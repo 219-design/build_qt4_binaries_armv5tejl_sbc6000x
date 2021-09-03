@@ -1,43 +1,48 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
 #ifndef QLOCALE_H
 #define QLOCALE_H
 
+#include <QtCore/qvariant.h>
 #include <QtCore/qstring.h>
 #include <QtCore/qobjectdefs.h>
 
@@ -52,6 +57,8 @@ class QDate;
 class QDateTime;
 class QTime;
 class QVariant;
+class QTextStream;
+class QTextStreamPrivate;
 
 class QLocale;
 
@@ -61,6 +68,15 @@ class Q_CORE_EXPORT QSystemLocale
 public:
     QSystemLocale();
     virtual ~QSystemLocale();
+
+    struct CurrencyToStringArgument
+    {
+        CurrencyToStringArgument() { }
+        CurrencyToStringArgument(const QVariant &v, const QString &s)
+            : value(v), symbol(s) { }
+        QVariant value;
+        QString symbol;
+    };
 
     enum QueryType {
         LanguageId, // uint
@@ -85,16 +101,31 @@ public:
         DateTimeFormatShort, // QString
         DateTimeToStringLong, // QString in: QDateTime
         DateTimeToStringShort, // QString in: QDateTime
-        MeasurementSystem // uint
+        MeasurementSystem, // uint
+        PositiveSign, // QString
+        AMText, // QString
+        PMText, // QString
+        FirstDayOfWeek, // Qt::DayOfWeek
+        Weekdays, // QList<Qt::DayOfWeek>
+        CurrencySymbol, // QString in: CurrencyToStringArgument
+        CurrencyToString, // QString in: qlonglong, qulonglong or double
+        UILanguages, // QStringList
+        StringToStandardQuotation, // QString in: QStringRef to quote
+        StringToAlternateQuotation, // QString in: QStringRef to quote
+        ScriptId, // uint
+        ListToSeparatedString, // QString
+        LocaleChanged, // system locale changed
+        NativeLanguageName, // QString
+        NativeCountryName, // QString
+        StandaloneMonthNameLong, // QString, in: int
+        StandaloneMonthNameShort // QString, in: int
     };
     virtual QVariant query(QueryType type, QVariant in) const;
     virtual QLocale fallbackLocale() const;
 
-#ifdef QLOCALE_CPP
 private:
     QSystemLocale(bool);
     friend QSystemLocale *QSystemLocale_globalSystemLocale();
-#endif
 };
 #endif
 
@@ -107,10 +138,15 @@ class Q_CORE_EXPORT QLocale
     friend class QString;
     friend class QByteArray;
     friend class QIntValidator;
-    friend class QDoubleValidator;
+    friend class QDoubleValidatorPrivate;
+    friend class QTextStream;
+    friend class QTextStreamPrivate;
 
 public:
+// GENERATED PART STARTS HERE
+// see qlocale_data_p.h for more info on generated data
     enum Language {
+        AnyLanguage = 0,
         C = 1,
         Abkhazian = 2,
         Afan = 3,
@@ -178,7 +214,7 @@ public:
         Kirghiz = 65,
         Korean = 66,
         Kurdish = 67,
-        Kurundi = 68,
+        Rundi = 68,
         Laothian = 69,
         Latin = 70,
         Latvian = 71,
@@ -196,7 +232,6 @@ public:
         NauruLanguage = 83,
         Nepali = 84,
         Norwegian = 85,
-        NorwegianBokmal = Norwegian,
         Occitan = 86,
         Oriya = 87,
         Pashto = 88,
@@ -252,8 +287,7 @@ public:
         Yoruba = 138,
         Zhuang = 139,
         Zulu = 140,
-        NorwegianNynorsk = 141,
-        Nynorsk = NorwegianNynorsk, // ### obsolete
+        Nynorsk = 141,
         Bosnian = 142,
         Divehi = 143,
         Manx = 144,
@@ -278,9 +312,96 @@ public:
         Hawaiian = 163,
         Tyap = 164,
         Chewa = 165,
-        LastLanguage = Chewa
+        Filipino = 166,
+        SwissGerman = 167,
+        SichuanYi = 168,
+        Kpelle = 169,
+        LowGerman = 170,
+        SouthNdebele = 171,
+        NorthernSotho = 172,
+        NorthernSami = 173,
+        Taroko = 174,
+        Gusii = 175,
+        Taita = 176,
+        Fulah = 177,
+        Kikuyu = 178,
+        Samburu = 179,
+        Sena = 180,
+        NorthNdebele = 181,
+        Rombo = 182,
+        Tachelhit = 183,
+        Kabyle = 184,
+        Nyankole = 185,
+        Bena = 186,
+        Vunjo = 187,
+        Bambara = 188,
+        Embu = 189,
+        Cherokee = 190,
+        Morisyen = 191,
+        Makonde = 192,
+        Langi = 193,
+        Ganda = 194,
+        Bemba = 195,
+        Kabuverdianu = 196,
+        Meru = 197,
+        Kalenjin = 198,
+        Nama = 199,
+        Machame = 200,
+        Colognian = 201,
+        Masai = 202,
+        Soga = 203,
+        Luyia = 204,
+        Asu = 205,
+        Teso = 206,
+        Saho = 207,
+        KoyraChiini = 208,
+        Rwa = 209,
+        Luo = 210,
+        Chiga = 211,
+        CentralMoroccoTamazight = 212,
+        KoyraboroSenni = 213,
+        Shambala = 214,
+        Bodo = 215,
+        Aghem = 216,
+        Basaa = 217,
+        Zarma = 218,
+        Duala = 219,
+        JolaFonyi = 220,
+        Ewondo = 221,
+        Bafia = 222,
+        LubaKatanga = 223,
+        MakhuwaMeetto = 224,
+        Mundang = 225,
+        Kwasio = 226,
+        Nuer = 227,
+        Sakha = 228,
+        Sangu = 229,
+        CongoSwahili = 230,
+        Tasawaq = 231,
+        Vai = 232,
+        Walser = 233,
+        Yangben = 234,
+        NorwegianBokmal = Norwegian,
+        NorwegianNynorsk = Nynorsk,
+        Kurundi = Rundi,
+        LastLanguage = Yangben
     };
 
+    enum Script {
+        AnyScript = 0,
+        ArabicScript = 1,
+        CyrillicScript = 2,
+        DeseretScript = 3,
+        GurmukhiScript = 4,
+        SimplifiedHanScript = 5,
+        TraditionalHanScript = 6,
+        LatinScript = 7,
+        MongolianScript = 8,
+        TifinaghScript = 9,
+        SimplifiedChineseScript = SimplifiedHanScript,
+        TraditionalChineseScript = TraditionalHanScript,
+        LastScript = TifinaghScript
+    };
     enum Country {
         AnyCountry = 0,
         Afghanistan = 1,
@@ -524,25 +645,46 @@ public:
         Zambia = 239,
         Zimbabwe = 240,
         SerbiaAndMontenegro = 241,
-        LastCountry = SerbiaAndMontenegro
+        Montenegro = 242,
+        Serbia = 243,
+        SaintBarthelemy = 244,
+        SaintMartin = 245,
+        LatinAmericaAndTheCaribbean = 246,
+        LastCountry = LatinAmericaAndTheCaribbean
     };
+// GENERATED PART ENDS HERE
 
     enum MeasurementSystem { MetricSystem, ImperialSystem };
 
-    enum FormatType { LongFormat, ShortFormat };
-    enum NumberOption { OmitGroupSeparator = 0x01, RejectGroupSeparator = 0x02 };
+    enum FormatType { LongFormat, ShortFormat, NarrowFormat };
+    enum NumberOption {
+        OmitGroupSeparator = 0x01,
+        RejectGroupSeparator = 0x02
+    };
     Q_DECLARE_FLAGS(NumberOptions, NumberOption)
+
+    enum CurrencySymbolFormat {
+        CurrencyIsoCode,
+        CurrencySymbol,
+        CurrencyDisplayName
+    };
 
     QLocale();
     QLocale(const QString &name);
     QLocale(Language language, Country country = AnyCountry);
+    QLocale(Language language, Script script, Country country);
     QLocale(const QLocale &other);
 
     QLocale &operator=(const QLocale &other);
 
     Language language() const;
+    Script script() const;
     Country country() const;
     QString name() const;
+
+    QString bcp47Name() const;
+    QString nativeLanguageName() const;
+    QString nativeCountryName() const;
 
     short toShort(const QString &s, bool *ok = 0, int base = 0) const;
     ushort toUShort(const QString &s, bool *ok = 0, int base = 0) const;
@@ -580,42 +722,78 @@ public:
     QDateTime toDateTime(const QString &string, const QString &format) const;
 #endif
 
+    // ### Qt 5: We need to return QString from these function since
+    //           unicode data contains several characters for these fields.
     QChar decimalPoint() const;
     QChar groupSeparator() const;
     QChar percent() const;
     QChar zeroDigit() const;
     QChar negativeSign() const;
+    QChar positiveSign() const;
     QChar exponential() const;
 
     QString monthName(int, FormatType format = LongFormat) const;
+    QString standaloneMonthName(int, FormatType format = LongFormat) const;
     QString dayName(int, FormatType format = LongFormat) const;
+    QString standaloneDayName(int, FormatType format = LongFormat) const;
+
+    Qt::DayOfWeek firstDayOfWeek() const;
+    QList<Qt::DayOfWeek> weekdays() const;
+
+    QString amText() const;
+    QString pmText() const;
 
     MeasurementSystem measurementSystem() const;
+
+    Qt::LayoutDirection textDirection() const;
+
+    QString toUpper(const QString &str) const;
+    QString toLower(const QString &str) const;
+
+    QString currencySymbol(CurrencySymbolFormat = CurrencySymbol) const;
+    QString toCurrencyString(qlonglong, const QString &symbol = QString()) const;
+    QString toCurrencyString(qulonglong, const QString &symbol = QString()) const;
+    inline QString toCurrencyString(short, const QString &symbol = QString()) const;
+    inline QString toCurrencyString(ushort, const QString &symbol = QString()) const;
+    inline QString toCurrencyString(int, const QString &symbol = QString()) const;
+    inline QString toCurrencyString(uint, const QString &symbol = QString()) const;
+    QString toCurrencyString(double, const QString &symbol = QString()) const;
+    inline QString toCurrencyString(float, const QString &symbol = QString()) const;
+
+    QStringList uiLanguages() const;
 
     inline bool operator==(const QLocale &other) const;
     inline bool operator!=(const QLocale &other) const;
 
     static QString languageToString(Language language);
     static QString countryToString(Country country);
+    static QString scriptToString(Script script);
     static void setDefault(const QLocale &locale);
 
     static QLocale c() { return QLocale(C); }
     static QLocale system();
 
+    static QList<QLocale> matchingLocales(QLocale::Language language, QLocale::Script script, QLocale::Country country);
     static QList<Country> countriesForLanguage(Language lang);
 
     void setNumberOptions(NumberOptions options);
     NumberOptions numberOptions() const;
 
+    enum QuotationStyle { StandardQuotation, AlternateQuotation };
+    QString quoteString(const QString &str, QuotationStyle style = StandardQuotation) const;
+    QString quoteString(const QStringRef &str, QuotationStyle style = StandardQuotation) const;
+
+    QString createSeparatedList(const QStringList &strl) const;
 //private:                        // this should be private, but can't be
     struct Data {
         quint16 index;
         quint16 numberOptions;
     }
-#if (defined(__arm__) || defined(__ARMEL__))
-        Q_PACKED
+#if (defined(__arm__) || defined(QT_NO_ARM_EABI))
+    Q_PACKED
 #endif
-        ;
+    ;
+
 private:
     friend struct QLocalePrivate;
     // ### We now use this field to pack an index into locale_data and NumberOptions.
@@ -644,12 +822,27 @@ inline bool QLocale::operator==(const QLocale &other) const
 inline bool QLocale::operator!=(const QLocale &other) const
     { return d() != other.d() || numberOptions() != other.numberOptions(); }
 
+inline QString QLocale::toCurrencyString(short i, const QString &symbol) const
+    { return toCurrencyString(qlonglong(i), symbol); }
+inline QString QLocale::toCurrencyString(ushort i, const QString &symbol) const
+    { return toCurrencyString(qulonglong(i), symbol); }
+inline QString QLocale::toCurrencyString(int i, const QString &symbol) const
+{ return toCurrencyString(qlonglong(i), symbol); }
+inline QString QLocale::toCurrencyString(uint i, const QString &symbol) const
+{ return toCurrencyString(qulonglong(i), symbol); }
+inline QString QLocale::toCurrencyString(float i, const QString &symbol) const
+{ return toCurrencyString(double(i), symbol); }
+
 #ifndef QT_NO_DATASTREAM
 Q_CORE_EXPORT QDataStream &operator<<(QDataStream &, const QLocale &);
 Q_CORE_EXPORT QDataStream &operator>>(QDataStream &, QLocale &);
 #endif
 
 QT_END_NAMESPACE
+
+#ifndef QT_NO_SYSTEMLOCALE
+Q_DECLARE_METATYPE(QSystemLocale::CurrencyToStringArgument)
+#endif
 
 QT_END_HEADER
 

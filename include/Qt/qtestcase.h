@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtTest module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -121,6 +125,7 @@ namespace QTest
         return 0;
     }
 
+
     Q_TESTLIB_EXPORT char *toHexRepresentation(const char *ba, int length);
     Q_TESTLIB_EXPORT char *toString(const char *);
     Q_TESTLIB_EXPORT char *toString(const void *);
@@ -141,6 +146,8 @@ namespace QTest
     Q_TESTLIB_EXPORT void *qGlobalData(const char *tagName, int typeId);
     Q_TESTLIB_EXPORT void *qElementData(const char *elementName, int metaTypeId);
     Q_TESTLIB_EXPORT QObject *testObject();
+
+    Q_TESTLIB_EXPORT const char *currentAppName();
 
     Q_TESTLIB_EXPORT const char *currentTestFunction();
     Q_TESTLIB_EXPORT const char *currentDataTag();
@@ -173,6 +180,7 @@ namespace QTest
             : compare_helper(false, "Compared values are not the same",
                              toString<T>(t1), toString<T>(t2), actual, expected, file, line);
     }
+
 
     template <>
     Q_TESTLIB_EXPORT bool qCompare<float>(float const &t1, float const &t2,
@@ -214,7 +222,22 @@ namespace QTest
     template <typename T1, typename T2>
     bool qCompare(T1 const &, T2 const &, const char *, const char *, const char *, int);
 
-#if defined(QT_COORD_TYPE) || defined(QT_ARCH_ARM) || defined(QT_ARCH_WINDOWSCE) || defined(QT_NO_FPU)
+#if defined(QT_COORD_TYPE) && (defined(QT_ARCH_ARM) || defined(QT_NO_FPU) || defined(QT_ARCH_WINDOWSCE))
+    template <>
+    inline bool qCompare<qreal, float>(qreal const &t1, float const &t2, const char *actual,
+                                 const char *expected, const char *file, int line)
+    {
+        return qCompare<qreal>(t1, qreal(t2), actual, expected, file, line);
+    }
+
+    template <>
+    inline bool qCompare<float, qreal>(float const &t1, qreal const &t2, const char *actual,
+                                 const char *expected, const char *file, int line)
+    {
+        return qCompare<qreal>(qreal(t1), t2, actual, expected, file, line);
+    }
+
+#elif defined(QT_COORD_TYPE) || defined(QT_ARCH_ARM) || defined(QT_NO_FPU) || defined(QT_ARCH_WINDOWSCE) || defined(QT_ARCH_SYMBIAN)
     template <>
     inline bool qCompare<qreal, double>(qreal const &t1, double const &t2, const char *actual,
                                  const char *expected, const char *file, int line)
@@ -270,6 +293,28 @@ namespace QTest
         return compare_string_helper(t1, t2, actual, expected, file, line);
     }
 #else  /* QTEST_NO_SPECIALIZATIONS */
+
+// In Symbian we have QTEST_NO_SPECIALIZATIONS defined, but still float related specialization
+// should be used. If QTEST_NO_SPECIALIZATIONS is enabled we get ambiguous overload errors.
+#if defined(QT_ARCH_SYMBIAN)
+    template <typename T1, typename T2>
+    bool qCompare(T1 const &, T2 const &, const char *, const char *, const char *, int);
+
+    template <>
+    inline bool qCompare<qreal, double>(qreal const &t1, double const &t2, const char *actual,
+                                 const char *expected, const char *file, int line)
+    {
+        return qCompare<float>(float(t1), float(t2), actual, expected, file, line);
+    }
+
+    template <>
+    inline bool qCompare<double, qreal>(double const &t1, qreal const &t2, const char *actual,
+                                 const char *expected, const char *file, int line)
+    {
+        return qCompare<float>(float(t1), float(t2), actual, expected, file, line);
+    }
+#endif
+
     inline bool qCompare(const char *t1, const char *t2, const char *actual,
                          const char *expected, const char *file, int line)
     {
@@ -302,6 +347,17 @@ namespace QTest
     {
         return compare_string_helper(t1, t2, actual, expected, file, line);
     }
+
+    // NokiaX86 and RVCT do not like implicitly comparing bool with int
+#ifndef QTEST_NO_SPECIALIZATIONS
+    template <>
+#endif
+    inline bool qCompare(bool const &t1, int const &t2,
+                    const char *actual, const char *expected, const char *file, int line)
+    {
+        return qCompare<int>(int(t1), t2, actual, expected, file, line);
+    }
+
 
     template <class T>
     inline bool qTest(const T& actual, const char *elementName, const char *actualStr,

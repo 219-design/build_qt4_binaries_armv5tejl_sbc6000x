@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -39,6 +43,7 @@
 #define QVFBHDR_H
 
 #include <QtGui/qcolor.h>
+#include <QtGui/qwindowdefs.h>
 #include <QtCore/qrect.h>
 
 QT_BEGIN_HEADER
@@ -47,9 +52,39 @@ QT_BEGIN_NAMESPACE
 
 QT_MODULE(Gui)
 
-#define QT_VFB_MOUSE_PIPE           "/tmp/.qtvfb_mouse-%1"
-#define QT_VFB_KEYBOARD_PIPE        "/tmp/.qtvfb_keyboard-%1"
-#define QT_VFB_MAP                  "/tmp/.qtvfb_map-%1"
+#ifndef QT_QWS_TEMP_DIR
+#  define QT_QWS_TEMP_DIR QLatin1String("/tmp")
+#endif
+
+#ifdef QT_PRIVATE_QWS
+#define QT_VFB_DATADIR(DISPLAY)       QString::fromLatin1("%1/qtembedded-%2-%3") \
+                                      .arg(QT_QWS_TEMP_DIR).arg(getuid()).arg(DISPLAY)
+#define QT_VFB_MOUSE_PIPE(DISPLAY)    QT_VFB_DATADIR(DISPLAY) \
+                                      .append(QLatin1String("/qtvfb_mouse"))
+#define QT_VFB_KEYBOARD_PIPE(DISPLAY) QT_VFB_DATADIR(DISPLAY) \
+                                      .append(QLatin1String("/qtvfb_keyboard"))
+#define QT_VFB_MAP(DISPLAY)           QT_VFB_DATADIR(DISPLAY) \
+                                      .append(QLatin1String("/qtvfb_map"))
+#define QT_VFB_SOUND_PIPE(DISPLAY)    QT_VFB_DATADIR(DISPLAY) \
+                                      .append(QLatin1String("/qt_soundserver"))
+#define QTE_PIPE(DISPLAY)             QT_VFB_DATADIR(DISPLAY) \
+                                      .append(QLatin1String("/QtEmbedded"))
+#define QTE_PIPE_QVFB(DISPLAY)        QTE_PIPE(DISPLAY)
+#else
+#define QT_VFB_DATADIR(DISPLAY)       QString::fromLatin1("%1/qtembedded-%2") \
+                                      .arg(QT_QWS_TEMP_DIR).arg(DISPLAY)
+#define QT_VFB_MOUSE_PIPE(DISPLAY)    QString::fromLatin1("%1/.qtvfb_mouse-%2") \
+                                      .arg(QT_QWS_TEMP_DIR).arg(DISPLAY)
+#define QT_VFB_KEYBOARD_PIPE(DISPLAY) QString::fromLatin1("%1/.qtvfb_keyboard-%2") \
+                                      .arg(QT_QWS_TEMP_DIR).arg(DISPLAY)
+#define QT_VFB_MAP(DISPLAY)           QString::fromLatin1("%1/.qtvfb_map-%2") \
+                                      .arg(QT_QWS_TEMP_DIR).arg(DISPLAY)
+#define QT_VFB_SOUND_PIPE(DISPLAY)    QString::fromLatin1("%1/.qt_soundserver-%2") \
+                                      .arg(QT_QWS_TEMP_DIR).arg(DISPLAY)
+#define QTE_PIPE(DISPLAY)             QT_VFB_DATADIR(DISPLAY) \
+                                      .append(QLatin1String("/QtEmbedded-%1")).arg(DISPLAY)
+#define QTE_PIPE_QVFB(DISPLAY)        QTE_PIPE(DISPLAY)
+#endif
 
 struct QVFbHeader
 {
@@ -65,6 +100,7 @@ struct QVFbHeader
     int viewerVersion;
     int serverVersion;
     int brightness; // since 4.4.0
+    WId windowId; // since 4.5.0
 };
 
 struct QVFbKeyData

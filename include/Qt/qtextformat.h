@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -72,8 +76,10 @@ class QTextCursor;
 class QTextDocument;
 class QTextLength;
 
+#ifndef QT_NO_DATASTREAM
 Q_GUI_EXPORT QDataStream &operator<<(QDataStream &, const QTextLength &);
 Q_GUI_EXPORT QDataStream &operator>>(QDataStream &, QTextLength &);
+#endif
 
 class Q_GUI_EXPORT QTextLength
 {
@@ -115,8 +121,10 @@ private:
 inline QTextLength::QTextLength(Type atype, qreal avalue)
     : lengthType(atype), fixedValueOrPercentage(avalue) {}
 
+#ifndef QT_NO_DATASTREAM
 Q_GUI_EXPORT QDataStream &operator<<(QDataStream &, const QTextFormat &);
 Q_GUI_EXPORT QDataStream &operator>>(QDataStream &, QTextFormat &);
+#endif
 
 class Q_GUI_EXPORT QTextFormat
 {
@@ -156,6 +164,8 @@ public:
         TextIndent = 0x1034,
         TabPositions = 0x1035,
         BlockIndent = 0x1040,
+        LineHeight = 0x1048,
+        LineHeightType = 0x1049,
         BlockNonBreakableLines = 0x1050,
         BlockTrailingHorizontalRulerWidth = 0x1060,
 
@@ -164,6 +174,10 @@ public:
         FontCapitalization = FirstFontProperty,
         FontLetterSpacing = 0x1FE1,
         FontWordSpacing = 0x1FE2,
+        FontStyleHint = 0x1FE3,
+        FontStyleStrategy = 0x1FE4,
+        FontKerning = 0x1FE5,
+        FontHintingPreference = 0x1FE6,
         FontFamily = 0x2000,
         FontPointSize = 0x2001,
         FontSizeAdjustment = 0x2002,
@@ -186,12 +200,13 @@ public:
         IsAnchor = 0x2030,
         AnchorHref = 0x2031,
         AnchorName = 0x2032,
-
         ObjectType = 0x2f00,
 
         // list properties
         ListStyle = 0x3000,
         ListIndent = 0x3001,
+        ListNumberPrefix = 0x3002,
+        ListNumberSuffix = 0x3003,
 
         // table and frame properties
         FrameBorder = 0x4000,
@@ -225,6 +240,12 @@ public:
         ImageName = 0x5000,
         ImageWidth = 0x5010,
         ImageHeight = 0x5011,
+
+        // internal
+        /*
+           SuppressText = 0x5012,
+           SuppressBackground = 0x513
+        */
 
         // selection properties
         FullWidthSelection = 0x06000,
@@ -357,7 +378,8 @@ public:
         AlignSubScript,
         AlignMiddle,
         AlignTop,
-        AlignBottom
+        AlignBottom,
+        AlignBaseline
     };
     enum UnderlineStyle { // keep in sync with Qt::PenStyle!
         NoUnderline,
@@ -431,6 +453,30 @@ public:
     inline bool fontFixedPitch() const
     { return boolProperty(FontFixedPitch); }
 
+    inline void setFontStyleHint(QFont::StyleHint hint, QFont::StyleStrategy strategy = QFont::PreferDefault)
+    { setProperty(FontStyleHint, hint); setProperty(FontStyleStrategy, strategy); }
+    inline void setFontStyleStrategy(QFont::StyleStrategy strategy)
+    { setProperty(FontStyleStrategy, strategy); }
+    QFont::StyleHint fontStyleHint() const
+    { return static_cast<QFont::StyleHint>(intProperty(FontStyleHint)); }
+    QFont::StyleStrategy fontStyleStrategy() const
+    { return static_cast<QFont::StyleStrategy>(intProperty(FontStyleStrategy)); }
+
+    inline void setFontHintingPreference(QFont::HintingPreference hintingPreference)
+    {
+        setProperty(FontHintingPreference, hintingPreference);
+    }
+
+    inline QFont::HintingPreference fontHintingPreference() const
+    {
+        return static_cast<QFont::HintingPreference>(intProperty(FontHintingPreference));
+    }
+
+    inline void setFontKerning(bool enable)
+    { setProperty(FontKerning, enable); }
+    inline bool fontKerning() const
+    { return boolProperty(FontKerning); }
+
     void setUnderlineStyle(UnderlineStyle style);
     inline UnderlineStyle underlineStyle() const
     { return static_cast<UnderlineStyle>(intProperty(TextUnderlineStyle)); }
@@ -480,23 +526,33 @@ protected:
     friend class QTextFormat;
 };
 
-inline void QTextCharFormat::setTableCellRowSpan(int atableCellRowSpan)
+inline void QTextCharFormat::setTableCellRowSpan(int _tableCellRowSpan)
 {
-    if (atableCellRowSpan == 1)
-	atableCellRowSpan = 0;
-    setProperty(TableCellRowSpan, atableCellRowSpan);
+    if (_tableCellRowSpan <= 1)
+        clearProperty(TableCellRowSpan); // the getter will return 1 here.
+    else
+        setProperty(TableCellRowSpan, _tableCellRowSpan);
 }
 
-inline void QTextCharFormat::setTableCellColumnSpan(int atableCellColumnSpan)
+inline void QTextCharFormat::setTableCellColumnSpan(int _tableCellColumnSpan)
 {
-    if (atableCellColumnSpan == 1)
-	atableCellColumnSpan = 0;
-    setProperty(TableCellColumnSpan, atableCellColumnSpan);
+    if (_tableCellColumnSpan <= 1)
+        clearProperty(TableCellColumnSpan); // the getter will return 1 here.
+    else
+        setProperty(TableCellColumnSpan, _tableCellColumnSpan);
 }
 
 class Q_GUI_EXPORT QTextBlockFormat : public QTextFormat
 {
 public:
+    enum LineHeightTypes {
+        SingleHeight = 0,
+        ProportionalHeight = 1,
+        FixedHeight = 2,
+        MinimumHeight = 3,
+        LineDistanceHeight = 4
+    };
+
     QTextBlockFormat();
 
     bool isValid() const { return isBlockFormat(); }
@@ -525,14 +581,22 @@ public:
     inline qreal rightMargin() const
     { return doubleProperty(BlockRightMargin); }
 
-    inline void setTextIndent(qreal margin)
-    { setProperty(TextIndent, margin); }
+    inline void setTextIndent(qreal aindent)
+    { setProperty(TextIndent, aindent); }
     inline qreal textIndent() const
     { return doubleProperty(TextIndent); }
 
     inline void setIndent(int indent);
     inline int indent() const
     { return intProperty(BlockIndent); }
+
+    inline void setLineHeight(qreal height, int heightType)
+    { setProperty(LineHeight, height); setProperty(LineHeightType, heightType); }
+    inline qreal lineHeight(qreal scriptLineHeight, qreal scaling) const;
+    inline qreal lineHeight() const
+    { return doubleProperty(LineHeight); }
+    inline int lineHeightType() const
+    { return intProperty(LineHeightType); }
 
     inline void setNonBreakableLines(bool b)
     { setProperty(BlockNonBreakableLines, b); }
@@ -558,6 +622,23 @@ inline void QTextBlockFormat::setAlignment(Qt::Alignment aalignment)
 inline void QTextBlockFormat::setIndent(int aindent)
 { setProperty(BlockIndent, aindent); }
 
+inline qreal QTextBlockFormat::lineHeight(qreal scriptLineHeight, qreal scaling = 1.0) const
+{
+  switch(intProperty(LineHeightType)) {
+    case SingleHeight:
+      return(scriptLineHeight);
+    case ProportionalHeight:
+      return(scriptLineHeight * doubleProperty(LineHeight) / 100.0);
+    case FixedHeight:
+      return(doubleProperty(LineHeight) * scaling);
+    case MinimumHeight:
+      return(qMax(scriptLineHeight, doubleProperty(LineHeight) * scaling));
+    case LineDistanceHeight:
+      return(scriptLineHeight + doubleProperty(LineHeight) * scaling);
+  }
+  return(0);
+}
+
 class Q_GUI_EXPORT QTextListFormat : public QTextFormat
 {
 public:
@@ -572,6 +653,8 @@ public:
         ListDecimal = -4,
         ListLowerAlpha = -5,
         ListUpperAlpha = -6,
+        ListLowerRoman = -7,
+        ListUpperRoman = -8,
         ListStyleUndefined = 0
     };
 
@@ -583,6 +666,14 @@ public:
     inline int indent() const
     { return intProperty(ListIndent); }
 
+    inline void setNumberPrefix(const QString &numberPrefix);
+    inline QString numberPrefix() const
+    { return stringProperty(ListNumberPrefix); }
+
+    inline void setNumberSuffix(const QString &numberSuffix);
+    inline QString numberSuffix() const
+    { return stringProperty(ListNumberSuffix); }
+
 protected:
     explicit QTextListFormat(const QTextFormat &fmt);
     friend class QTextFormat;
@@ -593,6 +684,12 @@ inline void QTextListFormat::setStyle(Style astyle)
 
 inline void QTextListFormat::setIndent(int aindent)
 { setProperty(ListIndent, aindent); }
+
+inline void QTextListFormat::setNumberPrefix(const QString &np)
+{ setProperty(ListNumberPrefix, np); }
+
+inline void QTextListFormat::setNumberSuffix(const QString &ns)
+{ setProperty(ListNumberSuffix, ns); }
 
 class Q_GUI_EXPORT QTextImageFormat : public QTextCharFormat
 {

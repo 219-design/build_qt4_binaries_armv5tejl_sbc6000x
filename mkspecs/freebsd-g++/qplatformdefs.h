@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the qmake spec of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -72,71 +76,13 @@
 #include <net/if.h>
 #endif
 
-#define QT_FOPEN                ::fopen
-#define QT_FSEEK                ::fseeko
-#define QT_FTELL                ::ftello
-#define QT_FGETPOS              ::fgetpos
-#define QT_FSETPOS              ::fsetpos
-#define QT_FPOS_T               fpos_t
-#define QT_OFF_T                off_t
+#include "../common/posix/qplatformdefs.h"
 
-#define QT_STATBUF		struct stat
-#define QT_STATBUF4TSTAT	struct stat
-#define QT_STAT			::stat
-#define QT_FSTAT		::fstat
-#define QT_LSTAT		::lstat
-#define QT_STAT_REG		S_IFREG
-#define QT_STAT_DIR		S_IFDIR
-#define QT_STAT_MASK		S_IFMT
-#define QT_STAT_LNK		S_IFLNK
-#define QT_SOCKET_CONNECT	::connect
-#define QT_SOCKET_BIND		::bind
-#define QT_FILENO		fileno
-#define QT_OPEN			::open
-#define QT_CLOSE		::close
-#define QT_TRUNCATE		::truncate
-#define QT_FTRUNCATE		::ftruncate
-#define QT_LSEEK		::lseek
-#define QT_READ			::read
-#define QT_WRITE		::write
-#define QT_ACCESS		::access
-#define QT_GETCWD		::getcwd
-#define QT_CHDIR		::chdir
-#define QT_MKDIR		::mkdir
-#define QT_RMDIR		::rmdir
+#undef QT_OPEN_LARGEFILE
+
 #define QT_OPEN_LARGEFILE       0
-#define QT_OPEN_RDONLY		O_RDONLY
-#define QT_OPEN_WRONLY		O_WRONLY
-#define QT_OPEN_RDWR		O_RDWR
-#define QT_OPEN_CREAT		O_CREAT
-#define QT_OPEN_TRUNC		O_TRUNC
-#define QT_OPEN_APPEND		O_APPEND
-
-#define QT_SIGNAL_RETTYPE	void
-#define QT_SIGNAL_ARGS		int
-#define QT_SIGNAL_IGNORE	SIG_IGN
-
-#if !defined(__DragonFly__) && (__FreeBSD_version < 400000)
-// FreeBSD 1.0 - 3.5.1
-#  define QT_SOCKLEN_T		int
-#else
-// FreeBSD 4.0 and better
-#  define QT_SOCKLEN_T		socklen_t
-#endif
 
 #define QT_SNPRINTF		::snprintf
 #define QT_VSNPRINTF		::vsnprintf
-
-// Older FreeBSD versions may still use the a.out format instead of ELF.
-// From the FreeBSD man pages:
-// 	In previous implementations, it was necessary to prepend an
-// 	underscore to all external symbols in order to gain symbol
-// 	compatibility with object code compiled from the C language.
-// 	This is still the case when using the (obsolete) -aout option to
-// 	the C language compiler.
-#ifndef __ELF__
-#define QT_AOUT_UNDERSCORE
-#endif
-
 
 #endif // QPLATFORMDEFS_H

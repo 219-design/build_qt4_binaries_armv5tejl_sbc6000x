@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -47,6 +51,7 @@ QT_BEGIN_NAMESPACE
 QT_MODULE(Network)
 
 class QIODevice;
+class QAbstractNetworkCache;
 class QAuthenticator;
 class QByteArray;
 template<typename T> class QList;
@@ -55,22 +60,42 @@ class QNetworkCookieJar;
 class QNetworkRequest;
 class QNetworkReply;
 class QNetworkProxy;
+class QNetworkProxyFactory;
 class QSslError;
+#if !defined(QT_NO_BEARERMANAGEMENT) && !defined(QT_MOBILITY_BEARER)
+class QNetworkConfiguration;
+#endif
+class QHttpMultiPart;
 
 class QNetworkReplyImplPrivate;
 class QNetworkAccessManagerPrivate;
 class Q_NETWORK_EXPORT QNetworkAccessManager: public QObject
 {
     Q_OBJECT
+
+#ifndef QT_NO_BEARERMANAGEMENT
+    Q_PROPERTY(NetworkAccessibility networkAccessible READ networkAccessible WRITE setNetworkAccessible NOTIFY networkAccessibleChanged)
+#endif
+
 public:
     enum Operation {
         HeadOperation = 1,
         GetOperation,
         PutOperation,
         PostOperation,
+        DeleteOperation,
+        CustomOperation,
 
         UnknownOperation = 0
     };
+
+#ifndef QT_NO_BEARERMANAGEMENT
+    enum NetworkAccessibility {
+        UnknownAccessibility = -1,
+        NotAccessible = 0,
+        Accessible = 1
+    };
+#endif
 
     explicit QNetworkAccessManager(QObject *parent = 0);
     ~QNetworkAccessManager();
@@ -78,7 +103,12 @@ public:
 #ifndef QT_NO_NETWORKPROXY
     QNetworkProxy proxy() const;
     void setProxy(const QNetworkProxy &proxy);
+    QNetworkProxyFactory *proxyFactory() const;
+    void setProxyFactory(QNetworkProxyFactory *factory);
 #endif
+
+    QAbstractNetworkCache *cache() const;
+    void setCache(QAbstractNetworkCache *cache);
 
     QNetworkCookieJar *cookieJar() const;
     void setCookieJar(QNetworkCookieJar *cookieJar);
@@ -87,8 +117,23 @@ public:
     QNetworkReply *get(const QNetworkRequest &request);
     QNetworkReply *post(const QNetworkRequest &request, QIODevice *data);
     QNetworkReply *post(const QNetworkRequest &request, const QByteArray &data);
+    QNetworkReply *post(const QNetworkRequest &request, QHttpMultiPart *multiPart);
     QNetworkReply *put(const QNetworkRequest &request, QIODevice *data);
     QNetworkReply *put(const QNetworkRequest &request, const QByteArray &data);
+    QNetworkReply *put(const QNetworkRequest &request, QHttpMultiPart *multiPart);
+    QNetworkReply *deleteResource(const QNetworkRequest &request);
+    QNetworkReply *sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, QIODevice *data = 0);
+
+#if !defined(QT_NO_BEARERMANAGEMENT) && !defined(QT_MOBILITY_BEARER)
+    void setConfiguration(const QNetworkConfiguration &config);
+    QNetworkConfiguration configuration() const;
+    QNetworkConfiguration activeConfiguration() const;
+#endif
+
+#ifndef QT_NO_BEARERMANAGEMENT
+    void setNetworkAccessible(NetworkAccessibility accessible);
+    NetworkAccessibility networkAccessible() const;
+#endif
 
 Q_SIGNALS:
 #ifndef QT_NO_NETWORKPROXY
@@ -100,15 +145,29 @@ Q_SIGNALS:
     void sslErrors(QNetworkReply *reply, const QList<QSslError> &errors);
 #endif
 
+#if !defined(QT_NO_BEARERMANAGEMENT) && !defined(QT_MOBILITY_BEARER)
+    void networkSessionConnected();
+#endif
+
+#ifndef QT_NO_BEARERMANAGEMENT
+    void networkAccessibleChanged(QNetworkAccessManager::NetworkAccessibility accessible);
+#endif
+
 protected:
     virtual QNetworkReply *createRequest(Operation op, const QNetworkRequest &request,
                                          QIODevice *outgoingData = 0);
 
 private:
     friend class QNetworkReplyImplPrivate;
+    friend class QNetworkAccessHttpBackend;
+
     Q_DECLARE_PRIVATE(QNetworkAccessManager)
     Q_PRIVATE_SLOT(d_func(), void _q_replyFinished())
     Q_PRIVATE_SLOT(d_func(), void _q_replySslErrors(QList<QSslError>))
+#if !defined(QT_NO_BEARERMANAGEMENT) && !defined(QT_MOBILITY_BEARER)
+    Q_PRIVATE_SLOT(d_func(), void _q_networkSessionClosed())
+    Q_PRIVATE_SLOT(d_func(), void _q_networkSessionStateChanged(QNetworkSession::State))
+#endif
 };
 
 QT_END_NAMESPACE

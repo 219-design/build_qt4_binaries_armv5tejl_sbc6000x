@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -39,6 +43,7 @@
 #define QMUTEX_H
 
 #include <QtCore/qglobal.h>
+#include <QtCore/qatomic.h>
 #include <new>
 
 QT_BEGIN_HEADER
@@ -49,7 +54,8 @@ QT_MODULE(Core)
 
 #ifndef QT_NO_THREAD
 
-class QMutexPrivate;
+class QAtomicInt;
+class QMutexData;
 
 class Q_CORE_EXPORT QMutex
 {
@@ -62,10 +68,13 @@ public:
     explicit QMutex(RecursionMode mode = NonRecursive);
     ~QMutex();
 
-    void lock();
-    bool tryLock();
+    void lock();     //### Qt5: make inline;
+    inline void lockInline();
+    bool tryLock();  //### Qt5: make inline;
     bool tryLock(int timeout);
-    void unlock();
+    inline bool tryLockInline();
+    void unlock();     //### Qt5: make inline;
+    inline void unlockInline();
 
 #if defined(QT3_SUPPORT)
     inline QT3_SUPPORT bool locked()
@@ -82,38 +91,42 @@ public:
 #endif
 
 private:
+    void lockInternal();
+    void unlockInternal();
     Q_DISABLE_COPY(QMutex)
 
-    QMutexPrivate *d;
+    QMutexData *d;
 };
 
 class Q_CORE_EXPORT QMutexLocker
 {
 public:
     inline explicit QMutexLocker(QMutex *m)
-        : mtx(m)
     {
-        Q_ASSERT_X((val & quintptr(1u)) == quintptr(0),
+        Q_ASSERT_X((reinterpret_cast<quintptr>(m) & quintptr(1u)) == quintptr(0),
                    "QMutexLocker", "QMutex pointer is misaligned");
-        relock();
+        if (m) {
+            m->lockInline();
+            val = reinterpret_cast<quintptr>(m) | quintptr(1u);
+        } else {
+            val = 0;
+        }
     }
     inline ~QMutexLocker() { unlock(); }
 
     inline void unlock()
     {
-        if (mtx) {
-            if ((val & quintptr(1u)) == quintptr(1u)) {
-                val &= ~quintptr(1u);
-                mtx->unlock();
-            }
+        if ((val & quintptr(1u)) == quintptr(1u)) {
+            val &= ~quintptr(1u);
+            mutex()->unlockInline();
         }
     }
 
     inline void relock()
     {
-        if (mtx) {
+        if (val) {
             if ((val & quintptr(1u)) == quintptr(0u)) {
-                mtx->lock();
+                mutex()->lockInline();
                 val |= quintptr(1u);
             }
         }
@@ -136,11 +149,55 @@ public:
 private:
     Q_DISABLE_COPY(QMutexLocker)
 
-    union {
-        QMutex *mtx;
-        quintptr val;
-    };
+    quintptr val;
 };
+
+class QMutexData
+{
+    public:
+        QAtomicInt contenders;
+        const uint recursive : 1;
+        uint reserved : 31;
+    protected:
+        QMutexData(QMutex::RecursionMode mode);
+        ~QMutexData();
+};
+
+#ifdef QT_NO_DEBUG
+inline void QMutex::unlockInline()
+{
+    if (d->recursive) {
+        unlock();
+    } else if (!d->contenders.testAndSetRelease(1, 0)) {
+        unlockInternal();
+    }
+}
+
+inline bool QMutex::tryLockInline()
+{
+    if (d->recursive) {
+        return tryLock();
+    } else {
+        return d->contenders.testAndSetAcquire(0, 1);
+    }
+}
+
+inline void QMutex::lockInline()
+{
+    if (d->recursive) {
+        lock();
+    } else if(!tryLockInline()) {
+        lockInternal();
+    }
+}
+#else // QT_NO_DEBUG
+//in debug we do not use inline calls in order to allow debugging tools
+// to hook the mutex locking functions.
+inline void QMutex::unlockInline() { unlock(); }
+inline bool QMutex::tryLockInline() { return tryLock(); }
+inline void QMutex::lockInline() { lock(); }
+#endif // QT_NO_DEBUG
+
 
 #else // QT_NO_THREAD
 
@@ -154,9 +211,11 @@ public:
     inline ~QMutex() {}
 
     static inline void lock() {}
-    static inline bool tryLock() { return true; }
-    static inline bool tryLock(int timeout) { Q_UNUSED(timeout); return true; }
-    static void unlock() {}
+    static inline void lockInline() {}
+    static inline bool tryLock(int timeout = 0) { Q_UNUSED(timeout); return true; }
+    static inline bool tryLockInline() { return true; }
+    static inline void unlock() {}
+    static inline void unlockInline() {}
 
 #if defined(QT3_SUPPORT)
     static inline QT3_SUPPORT bool locked() { return false; }

@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -40,6 +44,7 @@
 
 #include <QtCore/qnamespace.h>
 #include <QtCore/qobjectdefs.h>
+#include <QtCore/qscopedpointer.h>
 #include <QtGui/qpainter.h>
 
 QT_BEGIN_HEADER
@@ -104,6 +109,7 @@ public:
         PerspectiveTransform        = 0x00004000, // Can do perspective transformations
         BlendModes                  = 0x00008000, // Can do extended Porter&Duff composition
         ObjectBoundingModeGradients = 0x00010000, // Can do object bounding mode gradients
+        RasterOpModes               = 0x00020000, // Can do logical raster operations
         PaintOutsidePaintEvent      = 0x20000000, // Engine is capable of painting outside paint events
         /*                          0x10000000, // Used for emulating
                                     QGradient::StretchToDevice,
@@ -204,6 +210,10 @@ public:
         Raster,
         Direct3D,
         Pdf,
+        OpenVG,
+        OpenGL2,
+        PaintBuffer,
+        Blitter,
 
         User = 50,    // first user type id
         MaxUser = 100 // last user type id
@@ -220,7 +230,8 @@ public:
 
     QPainter *painter() const;
 
-    inline void syncState() { Q_ASSERT(state); updateState(*state); }
+    void syncState();
+    inline bool isExtended() const { return extended; }
 
 protected:
     QPaintEngine(QPaintEnginePrivate &data, PaintEngineFeatures devcaps=0);
@@ -230,14 +241,16 @@ protected:
 
     uint active : 1;
     uint selfDestruct : 1;
+    uint extended : 1;
 
-    QPaintEnginePrivate *d_ptr;
+    QScopedPointer<QPaintEnginePrivate> d_ptr;
 
 private:
     void setAutoDestruct(bool autoDestr) { selfDestruct = autoDestr; }
     bool autoDestruct() const { return selfDestruct; }
     Q_DISABLE_COPY(QPaintEngine)
 
+    friend class QPainterReplayer;
     friend class QFontEngineBox;
     friend class QFontEngineMac;
     friend class QFontEngineWin;
@@ -246,6 +259,8 @@ private:
 #endif
 #ifndef QT_NO_QWS_QPF
     friend class QFontEngineQPF1;
+#endif
+#ifndef QT_NO_QWS_QPF2
     friend class QFontEngineQPF;
 #endif
     friend class QPSPrintEngine;
@@ -256,6 +271,9 @@ private:
     friend class QtopiaPrintEnginePrivate;
     friend class QProxyFontEngine;
 #endif
+#ifdef Q_WS_QPA
+    friend class QFontEngineQPA;
+#endif
     friend class QPainter;
     friend class QPainterPrivate;
     friend class QWidget;
@@ -264,6 +282,7 @@ private:
     friend class QWin32PaintEnginePrivate;
     friend class QMacCGContext;
     friend class QPreviewPaintEngine;
+    friend class QX11GLPixmapData;
 };
 
 
@@ -297,6 +316,7 @@ public:
 
 protected:
     friend class QPaintEngine;
+    friend class QRasterPaintEngine;
     friend class QWidget;
     friend class QPainter;
     friend class QPainterPrivate;

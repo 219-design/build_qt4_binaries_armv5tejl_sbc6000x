@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -79,6 +83,7 @@ class QGraphicsSimpleTextItem;
 class QGraphicsTextItem;
 class QGraphicsView;
 class QGraphicsWidget;
+class QGraphicsSceneIndex;
 class QHelpEvent;
 class QInputMethodEvent;
 class QKeyEvent;
@@ -103,6 +108,8 @@ class Q_GUI_EXPORT QGraphicsScene : public QObject
     Q_PROPERTY(int bspTreeDepth READ bspTreeDepth WRITE setBspTreeDepth)
     Q_PROPERTY(QPalette palette READ palette WRITE setPalette)
     Q_PROPERTY(QFont font READ font WRITE setFont)
+    Q_PROPERTY(bool sortCacheEnabled READ isSortCacheEnabled WRITE setSortCacheEnabled)
+    Q_PROPERTY(bool stickyFocus READ stickyFocus WRITE setStickyFocus)
 
 public:
     enum ItemIndexMethod {
@@ -137,28 +144,48 @@ public:
     ItemIndexMethod itemIndexMethod() const;
     void setItemIndexMethod(ItemIndexMethod method);
 
+    bool isSortCacheEnabled() const;
+    void setSortCacheEnabled(bool enabled);
+
     int bspTreeDepth() const;
     void setBspTreeDepth(int depth);
 
     QRectF itemsBoundingRect() const;
 
     QList<QGraphicsItem *> items() const;
-    QList<QGraphicsItem *> items(const QPointF &pos) const;
-    QList<QGraphicsItem *> items(const QRectF &rect, Qt::ItemSelectionMode mode = Qt::IntersectsItemShape) const;
-    QList<QGraphicsItem *> items(const QPolygonF &polygon, Qt::ItemSelectionMode mode = Qt::IntersectsItemShape) const;
-    QList<QGraphicsItem *> items(const QPainterPath &path, Qt::ItemSelectionMode mode = Qt::IntersectsItemShape) const;
+    QList<QGraphicsItem *> items(Qt::SortOrder order) const; // ### Qt 5: unify
+
+    QList<QGraphicsItem *> items(const QPointF &pos, Qt::ItemSelectionMode mode, Qt::SortOrder order, const QTransform &deviceTransform = QTransform()) const;
+    QList<QGraphicsItem *> items(const QRectF &rect, Qt::ItemSelectionMode mode, Qt::SortOrder order, const QTransform &deviceTransform = QTransform()) const;
+    QList<QGraphicsItem *> items(const QPolygonF &polygon, Qt::ItemSelectionMode mode, Qt::SortOrder order, const QTransform &deviceTransform = QTransform()) const;
+    QList<QGraphicsItem *> items(const QPainterPath &path, Qt::ItemSelectionMode mode, Qt::SortOrder order, const QTransform &deviceTransform = QTransform()) const;
+
+    QList<QGraphicsItem *> items(const QPointF &pos) const; // ### obsolete
+    QList<QGraphicsItem *> items(const QRectF &rect, Qt::ItemSelectionMode mode = Qt::IntersectsItemShape) const; // ### obsolete
+    QList<QGraphicsItem *> items(const QPolygonF &polygon, Qt::ItemSelectionMode mode = Qt::IntersectsItemShape) const; // ### obsolete
+    QList<QGraphicsItem *> items(const QPainterPath &path, Qt::ItemSelectionMode mode = Qt::IntersectsItemShape) const; // ### obsolete
+
     QList<QGraphicsItem *> collidingItems(const QGraphicsItem *item, Qt::ItemSelectionMode mode = Qt::IntersectsItemShape) const;
-    QGraphicsItem *itemAt(const QPointF &pos) const;
+
+    QGraphicsItem *itemAt(const QPointF &pos) const; // ### obsolete
+    QGraphicsItem *itemAt(const QPointF &pos, const QTransform &deviceTransform) const;
 
     inline QList<QGraphicsItem *> items(qreal x, qreal y, qreal w, qreal h, Qt::ItemSelectionMode mode = Qt::IntersectsItemShape) const
-    { return items(QRectF(x, y, w, h), mode); }
-    inline QGraphicsItem *itemAt(qreal x, qreal y) const
+    { return items(QRectF(x, y, w, h), mode); } // ### obsolete
+    inline QList<QGraphicsItem *> items(qreal x, qreal y, qreal w, qreal h, Qt::ItemSelectionMode mode, Qt::SortOrder order,
+                                        const QTransform &deviceTransform = QTransform()) const
+    { return items(QRectF(x, y, w, h), mode, order, deviceTransform); }
+    inline QGraphicsItem *itemAt(qreal x, qreal y) const // ### obsolete
     { return itemAt(QPointF(x, y)); }
+    inline QGraphicsItem *itemAt(qreal x, qreal y, const QTransform &deviceTransform) const
+    { return itemAt(QPointF(x, y), deviceTransform); }
 
     QList<QGraphicsItem *> selectedItems() const;
     QPainterPath selectionArea() const;
-    void setSelectionArea(const QPainterPath &path);
-    void setSelectionArea(const QPainterPath &path, Qt::ItemSelectionMode);
+    void setSelectionArea(const QPainterPath &path); // ### obsolete
+    void setSelectionArea(const QPainterPath &path, const QTransform &deviceTransform);
+    void setSelectionArea(const QPainterPath &path, Qt::ItemSelectionMode mode); // ### obsolete
+    void setSelectionArea(const QPainterPath &path, Qt::ItemSelectionMode mode, const QTransform &deviceTransform);
 
     QGraphicsItemGroup *createItemGroup(const QList<QGraphicsItem *> &items);
     void destroyItemGroup(QGraphicsItemGroup *group);
@@ -180,12 +207,15 @@ public:
     inline QGraphicsRectItem *addRect(qreal x, qreal y, qreal w, qreal h, const QPen &pen = QPen(), const QBrush &brush = QBrush())
     { return addRect(QRectF(x, y, w, h), pen, brush); }
     void removeItem(QGraphicsItem *item);
-    
+
     QGraphicsItem *focusItem() const;
     void setFocusItem(QGraphicsItem *item, Qt::FocusReason focusReason = Qt::OtherFocusReason);
     bool hasFocus() const;
     void setFocus(Qt::FocusReason focusReason = Qt::OtherFocusReason);
     void clearFocus();
+
+    void setStickyFocus(bool enabled);
+    bool stickyFocus() const;
 
     QGraphicsItem *mouseGrabberItem() const;
 
@@ -213,8 +243,13 @@ public:
     QPalette palette() const;
     void setPalette(const QPalette &palette);
 
+    bool isActive() const;
+    QGraphicsItem *activePanel() const;
+    void setActivePanel(QGraphicsItem *item);
     QGraphicsWidget *activeWindow() const;
     void setActiveWindow(QGraphicsWidget *widget);
+
+    bool sendEvent(QGraphicsItem *item, QEvent *event);
 
 public Q_SLOTS:
     void update(const QRectF &rect = QRectF());
@@ -259,28 +294,36 @@ Q_SIGNALS:
     void selectionChanged();
 
 private:
-    void itemUpdated(QGraphicsItem *item, const QRectF &rect);
-
     Q_DECLARE_PRIVATE(QGraphicsScene)
     Q_DISABLE_COPY(QGraphicsScene)
-    Q_PRIVATE_SLOT(d_func(), void _q_updateIndex())
     Q_PRIVATE_SLOT(d_func(), void _q_emitUpdated())
-    Q_PRIVATE_SLOT(d_func(), void _q_removeItemLater(QGraphicsItem *item))
-    Q_PRIVATE_SLOT(d_func(), void _q_updateLater())
     Q_PRIVATE_SLOT(d_func(), void _q_polishItems())
+    Q_PRIVATE_SLOT(d_func(), void _q_processDirtyItems())
+    Q_PRIVATE_SLOT(d_func(), void _q_updateScenePosDescendants())
     friend class QGraphicsItem;
     friend class QGraphicsItemPrivate;
+    friend class QGraphicsObject;
     friend class QGraphicsView;
     friend class QGraphicsViewPrivate;
     friend class QGraphicsWidget;
+    friend class QGraphicsWidgetPrivate;
+    friend class QGraphicsEffect;
+    friend class QGraphicsSceneIndex;
+    friend class QGraphicsSceneIndexPrivate;
+    friend class QGraphicsSceneBspTreeIndex;
+    friend class QGraphicsSceneBspTreeIndexPrivate;
+    friend class QGraphicsItemEffectSourcePrivate;
+#ifndef QT_NO_GESTURES
+    friend class QGesture;
+#endif
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QGraphicsScene::SceneLayers)
 
+#endif // QT_NO_GRAPHICSVIEW
+
 QT_END_NAMESPACE
 
 QT_END_HEADER
-
-#endif // QT_NO_GRAPHICSVIEW
 
 #endif

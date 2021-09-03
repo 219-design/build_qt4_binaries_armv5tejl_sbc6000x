@@ -1,48 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtNetwork module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** In addition, as a special exception, Nokia gives permission to link
-** the code of its release of Qt with the OpenSSL project's "OpenSSL"
-** library (or modified versions of it that use the same license as the
-** "OpenSSL" library), and distribute the linked executables.  You must
-** comply with the GNU General Public License versions 2.0 or 3.0 in all
-** respects for all of the code used other than the "OpenSSL" code.  If
-** you modify this file, you may extend this exception to your version
-** of the file, but you are not obligated to do so.  If you do not wish
-** to do so, delete this exception statement from your version of this
-** file.
-**
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -93,8 +86,13 @@ public:
 
     // Autostarting the SSL client handshake.
     void connectToHostEncrypted(const QString &hostName, quint16 port, OpenMode mode = ReadWrite);
+    void connectToHostEncrypted(const QString &hostName, quint16 port, const QString &sslPeerName, OpenMode mode = ReadWrite);
     bool setSocketDescriptor(int socketDescriptor, SocketState state = ConnectedState,
                              OpenMode openMode = ReadWrite);
+
+    // ### Qt 5: Make virtual
+    void setSocketOption(QAbstractSocket::SocketOption option, const QVariant &value);
+    QVariant socketOption(QAbstractSocket::SocketOption option);
 
     SslMode mode() const;
     bool isEncrypted() const;
@@ -107,6 +105,9 @@ public:
 
     int peerVerifyDepth() const;
     void setPeerVerifyDepth(int depth);
+
+    QString peerVerifyName() const;
+    void setPeerVerifyName(const QString &hostName);
 
     // From QIODevice
     qint64 bytesAvailable() const;
@@ -175,6 +176,7 @@ public:
     QList<QSslError> sslErrors() const;
 
     static bool supportsSsl();
+    void ignoreSslErrors(const QList<QSslError> &errors);
 
 public Q_SLOTS:
     void startClientEncryption();
@@ -208,6 +210,7 @@ private:
     Q_PRIVATE_SLOT(d_func(), void _q_readyReadSlot())
     Q_PRIVATE_SLOT(d_func(), void _q_bytesWrittenSlot(qint64))
     Q_PRIVATE_SLOT(d_func(), void _q_flushWriteBuffer())
+    Q_PRIVATE_SLOT(d_func(), void _q_flushReadBuffer())
     friend class QSslSocketBackendPrivate;
 };
 

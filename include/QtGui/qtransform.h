@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtGui module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 #ifndef QTRANSFORM_H
@@ -46,6 +50,10 @@
 #include <QtCore/qpoint.h>
 #include <QtCore/qrect.h>
 
+#if defined(Q_OS_VXWORKS) && defined(m_type)
+#  undef m_type
+#endif
+
 QT_BEGIN_HEADER
 
 QT_BEGIN_NAMESPACE
@@ -56,7 +64,6 @@ class QVariant;
 
 class Q_GUI_EXPORT QTransform
 {
-    Q_ENUMS(TransformationType)
 public:
     enum TransformationType {
         TxNone      = 0x00,
@@ -67,12 +74,13 @@ public:
         TxProject   = 0x10
     };
 
+    inline explicit QTransform(Qt::Initialization) : affine(Qt::Uninitialized) {}
     QTransform();
     QTransform(qreal h11, qreal h12, qreal h13,
                qreal h21, qreal h22, qreal h23,
                qreal h31, qreal h32, qreal h33 = 1.0);
-    QTransform(qreal h11, qreal h12, qreal h13,
-               qreal h21, qreal h22, qreal h23);
+    QTransform(qreal h11, qreal h12, qreal h21,
+               qreal h22, qreal dx, qreal dy);
     explicit QTransform(const QMatrix &mtx);
 
     bool isAffine() const;
@@ -150,7 +158,24 @@ public:
     QTransform &operator/=(qreal div);
     QTransform &operator+=(qreal div);
     QTransform &operator-=(qreal div);
+
+    static QTransform fromTranslate(qreal dx, qreal dy);
+    static QTransform fromScale(qreal dx, qreal dy);
+
 private:
+    inline QTransform(qreal h11, qreal h12, qreal h13,
+                      qreal h21, qreal h22, qreal h23,
+                      qreal h31, qreal h32, qreal h33, bool)
+        : affine(h11, h12, h21, h22, h31, h32, true)
+        , m_13(h13), m_23(h23), m_33(h33)
+        , m_type(TxNone)
+        , m_dirty(TxProject) {}
+    inline QTransform(bool)
+        : affine(true)
+        , m_13(0), m_23(0), m_33(1)
+        , m_type(TxNone)
+        , m_dirty(TxNone) {}
+    inline TransformationType inline_type() const;
     QMatrix affine;
     qreal   m_13;
     qreal   m_23;
@@ -165,39 +190,39 @@ private:
 Q_DECLARE_TYPEINFO(QTransform, Q_MOVABLE_TYPE);
 
 /******* inlines *****/
+inline QTransform::TransformationType QTransform::inline_type() const
+{
+    if (m_dirty == TxNone)
+        return static_cast<TransformationType>(m_type);
+    return type();
+}
+
 inline bool QTransform::isAffine() const
 {
-    return qFuzzyCompare(m_13 + 1, 1) && qFuzzyCompare(m_23 + 1, 1);
+    return inline_type() < TxProject;
 }
 inline bool QTransform::isIdentity() const
 {
-#define qFZ qFuzzyCompare
-    return qFZ(affine._m11, 1) && qFZ(affine._m12 + 1, 1) && qFZ(m_13 + 1, 1)
-        && qFZ(affine._m21 + 1, 1) && qFZ(affine._m22, 1) && qFZ(m_23 + 1, 1)
-        && qFZ(affine._dx + 1, 1) && qFZ(affine._dy + 1, 1) && qFZ(m_33, 1);
-#undef qFZ
+    return inline_type() == TxNone;
 }
 
 inline bool QTransform::isInvertible() const
 {
-    return !qFuzzyCompare(determinant() + 1, 1);
+    return !qFuzzyIsNull(determinant());
 }
 
 inline bool QTransform::isScaling() const
 {
-    return !qFuzzyCompare(affine._m11, 1) ||
-        !qFuzzyCompare(affine._m22, 1);
+    return type() >= TxScale;
 }
 inline bool QTransform::isRotating() const
 {
-    return !qFuzzyCompare(affine._m12 + 1, 1) ||
-        !qFuzzyCompare(affine._m21 + 1, 1);
+    return inline_type() >= TxRotate;
 }
 
 inline bool QTransform::isTranslating() const
 {
-    return !qFuzzyCompare(affine._dx + 1, 1) ||
-        !qFuzzyCompare(affine._dy + 1, 1);
+    return inline_type() >= TxTranslate;
 }
 
 inline qreal QTransform::determinant() const
@@ -256,6 +281,8 @@ inline qreal QTransform::dy() const
 
 inline QTransform &QTransform::operator*=(qreal num)
 {
+    if (num == 1.)
+        return *this;
     affine._m11 *= num;
     affine._m12 *= num;
     m_13        *= num;
@@ -265,16 +292,21 @@ inline QTransform &QTransform::operator*=(qreal num)
     affine._dx  *= num;
     affine._dy  *= num;
     m_33        *= num;
-    m_dirty     |= TxScale;
+    if (m_dirty < TxScale)
+        m_dirty = TxScale;
     return *this;
 }
 inline QTransform &QTransform::operator/=(qreal div)
 {
+    if (div == 0)
+        return *this;
     div = 1/div;
     return operator*=(div);
 }
 inline QTransform &QTransform::operator+=(qreal num)
 {
+    if (num == 0)
+        return *this;
     affine._m11 += num;
     affine._m12 += num;
     m_13        += num;
@@ -284,11 +316,13 @@ inline QTransform &QTransform::operator+=(qreal num)
     affine._dx  += num;
     affine._dy  += num;
     m_33        += num;
-    m_dirty     |= TxProject;
+    m_dirty     = TxProject;
     return *this;
 }
 inline QTransform &QTransform::operator-=(qreal num)
 {
+    if (num == 0)
+        return *this;
     affine._m11 -= num;
     affine._m12 -= num;
     m_13        -= num;
@@ -298,13 +332,29 @@ inline QTransform &QTransform::operator-=(qreal num)
     affine._dx  -= num;
     affine._dy  -= num;
     m_33        -= num;
-    m_dirty     |= TxProject;
+    m_dirty     = TxProject;
     return *this;
 }
 
+inline bool qFuzzyCompare(const QTransform& t1, const QTransform& t2)
+{
+    return qFuzzyCompare(t1.m11(), t2.m11())
+        && qFuzzyCompare(t1.m12(), t2.m12())
+        && qFuzzyCompare(t1.m13(), t2.m13())
+        && qFuzzyCompare(t1.m21(), t2.m21())
+        && qFuzzyCompare(t1.m22(), t2.m22())
+        && qFuzzyCompare(t1.m23(), t2.m23())
+        && qFuzzyCompare(t1.m31(), t2.m31())
+        && qFuzzyCompare(t1.m32(), t2.m32())
+        && qFuzzyCompare(t1.m33(), t2.m33());
+}
+
+
 /****** stream functions *******************/
+#ifndef QT_NO_DATASTREAM
 Q_GUI_EXPORT QDataStream &operator<<(QDataStream &, const QTransform &);
 Q_GUI_EXPORT QDataStream &operator>>(QDataStream &, QTransform &);
+#endif
 
 #ifndef QT_NO_DEBUG_STREAM
 Q_GUI_EXPORT QDebug operator<<(QDebug, const QTransform &);

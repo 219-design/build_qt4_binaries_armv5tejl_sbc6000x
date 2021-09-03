@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -47,6 +51,7 @@
 #include <QtCore/qstring.h>
 #include <QtCore/qvector.h>
 #include <QtCore/qset.h>
+#include <QtCore/qcontiguouscache.h>
 
 QT_BEGIN_HEADER
 
@@ -75,16 +80,20 @@ public:
     inline QDebug &operator=(const QDebug &other);
     inline ~QDebug() {
         if (!--stream->ref) {
-            if(stream->message_output)
-                qt_message_output(stream->type, stream->buffer.toLocal8Bit().data());
+            if(stream->message_output) {
+                QT_TRY {
+                    qt_message_output(stream->type, stream->buffer.toLocal8Bit().data());
+                } QT_CATCH(std::bad_alloc&) { /* We're out of memory - give up. */ }
+            }
             delete stream;
         }
     }
-    inline QDebug &space() { stream->space = true; stream->ts << " "; return *this; }
+    inline QDebug &space() { stream->space = true; stream->ts << ' '; return *this; }
     inline QDebug &nospace() { stream->space = false; return *this; }
-    inline QDebug &maybeSpace() { if (stream->space) stream->ts << " "; return *this; }
+    inline QDebug &maybeSpace() { if (stream->space) stream->ts << ' '; return *this; }
 
-    inline QDebug &operator<<(QChar t) { stream->ts << "\'" << t << "\'"; return maybeSpace(); }
+    inline QDebug &operator<<(QChar t) { stream->ts << '\'' << t << '\''; return maybeSpace(); }
+    inline QDebug &operator<<(QBool t) { stream->ts << (bool(t != 0) ? "true" : "false"); return maybeSpace(); }
     inline QDebug &operator<<(bool t) { stream->ts << (t ? "true" : "false"); return maybeSpace(); }
     inline QDebug &operator<<(char t) { stream->ts << t; return maybeSpace(); }
     inline QDebug &operator<<(signed short t) { stream->ts << t; return maybeSpace(); }
@@ -100,9 +109,10 @@ public:
     inline QDebug &operator<<(float t) { stream->ts << t; return maybeSpace(); }
     inline QDebug &operator<<(double t) { stream->ts << t; return maybeSpace(); }
     inline QDebug &operator<<(const char* t) { stream->ts << QString::fromAscii(t); return maybeSpace(); }
-    inline QDebug &operator<<(const QString & t) { stream->ts << "\"" << t  << "\""; return maybeSpace(); }
-    inline QDebug &operator<<(const QLatin1String &t) { stream->ts << "\""  << t.latin1() << "\""; return maybeSpace(); }
-    inline QDebug &operator<<(const QByteArray & t) { stream->ts  << "\"" << t << "\""; return maybeSpace(); }
+    inline QDebug &operator<<(const QString & t) { stream->ts << '\"' << t  << '\"'; return maybeSpace(); }
+    inline QDebug &operator<<(const QStringRef & t) { return operator<<(t.toString()); }
+    inline QDebug &operator<<(const QLatin1String &t) { stream->ts << '\"'  << t.latin1() << '\"'; return maybeSpace(); }
+    inline QDebug &operator<<(const QByteArray & t) { stream->ts  << '\"' << t << '\"'; return maybeSpace(); }
     inline QDebug &operator<<(const void * t) { stream->ts << t; return maybeSpace(); }
     inline QDebug &operator<<(QTextStreamFunction f) {
         stream->ts << f;
@@ -111,6 +121,24 @@ public:
 
     inline QDebug &operator<<(QTextStreamManipulator m)
     { stream->ts << m; return *this; }
+};
+
+class QNoDebug
+{
+public:
+    inline QNoDebug(){}
+    inline QNoDebug(const QDebug &){}
+    inline ~QNoDebug(){}
+#if !defined( QT_NO_TEXTSTREAM )
+    inline QNoDebug &operator<<(QTextStreamFunction) { return *this; }
+    inline QNoDebug &operator<<(QTextStreamManipulator) { return *this; }
+#endif
+    inline QNoDebug &space() { return *this; }
+    inline QNoDebug &nospace() { return *this; }
+    inline QNoDebug &maybeSpace() { return *this; }
+
+    template<typename T>
+    inline QNoDebug &operator<<(const T &) { return *this; }
 };
 
 Q_CORE_EXPORT_INLINE QDebug qCritical() { return QDebug(QtCriticalMsg); }
@@ -132,13 +160,13 @@ template <class T>
 inline QDebug operator<<(QDebug debug, const QList<T> &list)
 #endif
 {
-    debug.nospace() << "(";
+    debug.nospace() << '(';
     for (Q_TYPENAME QList<T>::size_type i = 0; i < list.count(); ++i) {
         if (i)
             debug << ", ";
         debug << list.at(i);
     }
-    debug << ")";
+    debug << ')';
     return debug.space();
 }
 
@@ -165,9 +193,9 @@ inline QDebug operator<<(QDebug debug, const QMap<aKey, aT> &map)
     debug.nospace() << "QMap(";
     for (typename QMap<aKey, aT>::const_iterator it = map.constBegin();
          it != map.constEnd(); ++it) {
-        debug << "(" << it.key() << ", " << it.value() << ")";
+        debug << '(' << it.key() << ", " << it.value() << ')';
     }
-    debug << ")";
+    debug << ')';
     return debug.space();
 }
 
@@ -182,8 +210,8 @@ inline QDebug operator<<(QDebug debug, const QHash<aKey, aT> &hash)
     debug.nospace() << "QHash(";
     for (typename QHash<aKey, aT>::const_iterator it = hash.constBegin();
             it != hash.constEnd(); ++it)
-        debug << "(" << it.key() << ", " << it.value() << ")";
-    debug << ")";
+        debug << '(' << it.key() << ", " << it.value() << ')';
+    debug << ')';
     return debug.space();
 }
 
@@ -195,7 +223,7 @@ template <class T1, class T2>
 inline QDebug operator<<(QDebug debug, const QPair<T1, T2> &pair)
 #endif
 {
-    debug.nospace() << "QPair(" << pair.first << "," << pair.second << ")";
+    debug.nospace() << "QPair(" << pair.first << ',' << pair.second << ')';
     return debug.space();
 }
 
@@ -206,38 +234,54 @@ inline QDebug operator<<(QDebug debug, const QSet<T> &set)
     return operator<<(debug, set.toList());
 }
 
+#if defined(FORCE_UREF)
+template <class T>
+inline QDebug &operator<<(QDebug debug, const QContiguousCache<T> &cache)
+#else
+template <class T>
+inline QDebug operator<<(QDebug debug, const QContiguousCache<T> &cache)
+#endif
+{
+    debug.nospace() << "QContiguousCache(";
+    for (int i = cache.firstIndex(); i <= cache.lastIndex(); ++i) {
+        debug << cache[i];
+        if (i != cache.lastIndex())
+            debug << ", ";
+    }
+    debug << ')';
+    return debug.space();
+}
+
+#if defined(FORCE_UREF)
+template <class T>
+inline QDebug &operator<<(QDebug debug, const QFlags<T> &flags)
+#else
+template <class T>
+inline QDebug operator<<(QDebug debug, const QFlags<T> &flags)
+#endif
+{
+    debug.nospace() << "QFlags(";
+    bool needSeparator = false;
+    for (uint i = 0; i < sizeof(T) * 8; ++i) {
+        if (flags.testFlag(T(1 << i))) {
+            if (needSeparator)
+                debug.nospace() << '|';
+            else
+                needSeparator = true;
+            debug.nospace() << "0x" << QByteArray::number(T(1 << i), 16).constData();
+        }
+    }
+    debug << ')';
+    return debug.space();
+}
+
 #if !defined(QT_NO_DEBUG_STREAM)
 Q_CORE_EXPORT_INLINE QDebug qDebug() { return QDebug(QtDebugMsg); }
 
 #else // QT_NO_DEBUG_STREAM
-
-class QNoDebug
-{
-public:
-    inline QNoDebug(){}
-    inline QNoDebug(const QDebug &){}
-    inline ~QNoDebug(){}
-#if !defined( QT_NO_TEXTSTREAM )
-    inline QNoDebug &operator<<(QTextStreamFunction) { return *this; }
-    inline QNoDebug &operator<<(QTextStreamManipulator) { return *this; }
-#endif
-    inline QNoDebug &space() { return *this; }
-    inline QNoDebug &nospace() { return *this; }
-    inline QNoDebug &maybeSpace() { return *this; }
-
-#ifndef QT_NO_MEMBER_TEMPLATES
-    template<typename T>
-    inline QNoDebug &operator<<(const T &) { return *this; }
-#endif
-};
 #undef qDebug
 inline QNoDebug qDebug() { return QNoDebug(); }
 #define qDebug QT_NO_QDEBUG_MACRO
-
-#ifdef QT_NO_MEMBER_TEMPLATES
-template<typename T>
-inline QNoDebug operator<<(QNoDebug debug, const T &) { return debug; }
-#endif
 
 #endif
 

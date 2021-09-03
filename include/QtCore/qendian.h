@@ -1,37 +1,41 @@
 /****************************************************************************
 **
-** Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
-** Contact: Qt Software Information (qt-info@nokia.com)
+** Copyright (C) 2015 The Qt Company Ltd.
+** Contact: http://www.qt.io/licensing/
 **
 ** This file is part of the QtCore module of the Qt Toolkit.
 **
-** Commercial Usage
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
+** $QT_BEGIN_LICENSE:LGPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
 ** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see http://www.qt.io/terms-conditions. For further
+** information use the contact form at http://www.qt.io/contact-us.
 **
+** GNU Lesser General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 or version 3 as published by the Free
+** Software Foundation and appearing in the file LICENSE.LGPLv21 and
+** LICENSE.LGPLv3 included in the packaging of this file. Please review the
+** following information to ensure the GNU Lesser General Public License
+** requirements will be met: https://www.gnu.org/licenses/lgpl.html and
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** As a special exception, The Qt Company gives you certain additional
+** rights. These rights are described in The Qt Company LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
 **
 ** GNU General Public License Usage
 ** Alternatively, this file may be used under the terms of the GNU
-** General Public License versions 2.0 or 3.0 as published by the Free
-** Software Foundation and appearing in the file LICENSE.GPL included in
-** the packaging of this file.  Please review the following information
-** to ensure GNU General Public Licensing requirements will be met:
-** http://www.fsf.org/licensing/licenses/info/GPLv2.html and
-** http://www.gnu.org/copyleft/gpl.html.  In addition, as a special
-** exception, Nokia gives you certain additional rights. These rights
-** are described in the Nokia Qt GPL Exception version 1.3, included in
-** the file GPL_EXCEPTION.txt in this package.
+** General Public License version 3.0 as published by the Free Software
+** Foundation and appearing in the file LICENSE.GPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU General Public License version 3.0 requirements will be
+** met: http://www.gnu.org/copyleft/gpl.html.
 **
-** Qt for Windows(R) Licensees
-** As a special exception, Nokia, as the sole copyright holder for Qt
-** Designer, grants users of the Qt/Eclipse Integration plug-in the
-** right for the Qt/Eclipse Integration to link to functionality
-** provided by Qt Designer and its related libraries.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** $QT_END_LICENSE$
 **
 ****************************************************************************/
 
@@ -39,6 +43,13 @@
 #define QENDIAN_H
 
 #include <QtCore/qglobal.h>
+
+// include stdlib.h and hope that it defines __GLIBC__ for glibc-based systems
+#include <stdlib.h>
+
+#ifdef __GLIBC__
+#include <byteswap.h>
+#endif
 
 QT_BEGIN_HEADER
 
@@ -77,7 +88,7 @@ template <typename T> inline void qToUnaligned(const T src, uchar *dest)
  * and return the value in host-endian encoding.
  * There is no requirement that \a src must be aligned.
 */
-#if defined Q_CC_MSVC && _MSC_VER < 1300 || defined Q_CC_SUN
+#if defined Q_CC_SUN
 inline quint64 qFromLittleEndian_helper(const uchar *src, quint64 *dest)
 {
     return 0
@@ -145,9 +156,9 @@ template <> inline quint32 qFromLittleEndian<quint32>(const uchar *src)
 
 template <> inline quint16 qFromLittleEndian<quint16>(const uchar *src)
 {
-    return 0
-        | src[0]
-        | src[1] * 0x0100;
+    return quint16(0
+                   | src[0]
+                   | src[1] * 0x0100);
 }
 
 // signed specializations
@@ -165,7 +176,7 @@ template <> inline qint16 qFromLittleEndian<qint16>(const uchar *src)
  * and return the value in host-endian encoding.
  * There is no requirement that \a src must be aligned.
 */
-#if defined Q_CC_MSVC && _MSC_VER < 1300 || defined Q_CC_SUN
+#if defined Q_CC_SUN
 inline quint64 qFromBigEndian_helper(const uchar *src, quint64 *dest)
 {
     return 0
@@ -237,9 +248,9 @@ inline quint32 qFromBigEndian<quint32>(const uchar *src)
 template<>
 inline quint16 qFromBigEndian<quint16>(const uchar *src)
 {
-    return 0
-        | src[1]
-        | src[0] * quint16(0x0100);
+    return quint16( 0
+                    | src[1]
+                    | src[0] * quint16(0x0100));
 }
 
 
@@ -260,6 +271,21 @@ template <> inline qint16 qFromBigEndian<qint16>(const uchar *src)
  * and it is therefore a bit more convenient and in most cases more efficient.
 */
 template <typename T> T qbswap(T source);
+
+#ifdef __GLIBC__
+template <> inline quint64 qbswap<quint64>(quint64 source)
+{
+    return bswap_64(source);
+}
+template <> inline quint32 qbswap<quint32>(quint32 source)
+{
+    return bswap_32(source);
+}
+template <> inline quint16 qbswap<quint16>(quint16 source)
+{
+    return bswap_16(source);
+}
+#else
 template <> inline quint64 qbswap<quint64>(quint64 source)
 {
     return 0
@@ -284,10 +310,11 @@ template <> inline quint32 qbswap<quint32>(quint32 source)
 
 template <> inline quint16 qbswap<quint16>(quint16 source)
 {
-    return 0
-        | ((source & 0x00ff) << 8)
-        | ((source & 0xff00) >> 8);
+    return quint16( 0
+                    | ((source & 0x00ff) << 8)
+                    | ((source & 0xff00) >> 8) );
 }
+#endif // __GLIBC__
 
 // signed specializations
 template <> inline qint64 qbswap<qint64>(qint64 source)
@@ -335,6 +362,11 @@ template <typename T> inline void qToLittleEndian(T src, uchar *dest)
 { qToUnaligned<T>(src, dest); }
 
 #endif // Q_BYTE_ORDER == Q_BIG_ENDIAN
+
+template <> inline quint8 qbswap<quint8>(quint8 source)
+{
+    return source;
+}
 
 QT_END_NAMESPACE
 
