@@ -54,6 +54,7 @@ else
 
   echo "QMAKE_INCDIR += ${LEGACY_TSLIB_DIR}/include" >> qt-everywhere-opensource-src-4.8.7/mkspecs/qws/linux-arm-g++/qmake.conf
   echo "QMAKE_LIBDIR += ${LEGACY_TSLIB_DIR}/lib" >> qt-everywhere-opensource-src-4.8.7/mkspecs/qws/linux-arm-g++/qmake.conf
+  echo "DEFINES += QT_QWS_ROTATE_BGR" >> qt-everywhere-opensource-src-4.8.7/mkspecs/qws/linux-arm-g++/qmake.conf
 
   patch ${WORK_DIR}/qt-everywhere-opensource-src-4.8.7/src/corelib/thread/qthread_unix.cpp "${THISDIR}"/no_thread_tls.patch
 fi
